@@ -7,7 +7,7 @@ Small decisions made under uncertainty can cascade into irreversible global cons
 The project is fully client side and is hosted for free using GitHub Pages.
 
 
-**Live Deployment:** https://skredx.github.io/
+**Live Deployment:** https://skredx.github.io/Pandemic-Directive/
 
 
 The game features a dark, terminal-style interface with audio immersion and a high-difficulty mathematical model that simulates logistic viral growth and societal decay.
