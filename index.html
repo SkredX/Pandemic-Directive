@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pandemic: Butterfly Effect</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  <style>
+    body {
+      background: black;
+      color: #00ffcc;
+      font-family: monospace;
+      padding: 20px;
+    }
+    #terminal {
+      white-space: pre-wrap;
+    }
+    input {
+      background: black;
+      color: #00ffcc;
+      border: none;
+      outline: none;
+      font-family: monospace;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+<div id="terminal"></div>
+<input id="input" placeholder="Enter choice number..." autofocus />
+
+<script>
+let pyodide;
+let awaitingChoice = false;
+
+async function main() {
+  pyodide = await loadPyodide();
+  await pyodide.runPythonAsync(await (await fetch("game_core.py")).text());
+
+  const output = pyodide.runPython("start_game()");
+  document.getElementById("terminal").textContent += output + "\n";
+  awaitingChoice = true;
+}
+
+document.getElementById("input").addEventListener("keydown", async (e) => {
+  if (e.key === "Enter" && awaitingChoice) {
+    const val = parseInt(e.target.value) - 1;
+    e.target.value = "";
+
+    const out = pyodide.runPython(`make_choice(${val})`);
+    document.getElementById("terminal").textContent += "\n" + out + "\n";
+  }
+});
+
+main();
+</script>
+</body>
+</html>
