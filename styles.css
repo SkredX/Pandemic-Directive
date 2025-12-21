@@ -3,40 +3,34 @@
    ========================================= */
 :root {
   /* DEFAULT STATE (Healthy/Stable) */
-  --bg-body: #050505;           /* Very dark grey/black */
-  --bg-terminal: #0a0a0a;       /* Slightly lighter black */
+  --bg-body: #050505;           
+  --bg-terminal: #0a0a0a;       
   
   --text-main: #6ee7b7;         /* Retro Phosphor Green/Cyan */
-  --text-muted: #4b5563;        /* Grey for borders/placeholders */
+  --text-muted: #4b5563;        
   
-  --accent: #10b981;            /* Bright Green for buttons/highlights */
+  --accent: #10b981;            /* Bright Green */
   --accent-hover: #34d399;      
   
   --font-stack: "Courier New", Courier, monospace;
-  --glow: 0 0 10px rgba(16, 185, 129, 0.2); /* Green glow */
+  --glow: 0 0 10px rgba(16, 185, 129, 0.2); 
 }
 
-/* CRITICAL STATE (Population < 50%) 
-   These variables override the defaults when the .critical class is present */
+/* CRITICAL STATE OVERRIDES */
 .container.critical {
-  --text-main: #ef4444;         /* Bright Red */
-  --text-muted: #7f1d1d;        /* Dark Blood Red */
-  
-  --accent: #b91c1c;            /* Deep Red */
-  --accent-hover: #dc2626;      /* Lighter Red */
-  
-  --bg-terminal: #1a0505;       /* Very dark red background tint */
-  --glow: 0 0 20px rgba(220, 38, 38, 0.4); /* Intense Red glow */
-  
+  --text-main: #ef4444;         
+  --text-muted: #7f1d1d;        
+  --accent: #b91c1c;            
+  --accent-hover: #dc2626;      
+  --bg-terminal: #1a0505;       
+  --glow: 0 0 20px rgba(220, 38, 38, 0.4); 
   border-color: var(--accent);
 }
 
 /* =========================================
    CORE LAYOUT
    ========================================= */
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -48,10 +42,104 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden; /* Prevent body scroll, handle inside terminal */
+  overflow: hidden; 
 }
 
-/* The Main Game Wrapper */
+/* =========================================
+   LOADING SCREEN & INTRO
+   ========================================= */
+#loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s ease-out;
+}
+
+/* Loading Phase */
+#loading-phase {
+  width: 300px;
+  text-align: center;
+  transition: opacity 0.5s ease;
+}
+
+.loading-text {
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+  animation: blink 1.5s infinite;
+}
+
+.progress-container {
+  width: 100%;
+  height: 4px;
+  background: #1f2937;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  width: 0%;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  transition: width 2.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Intro Text Phase */
+#intro-phase {
+  display: none; /* Hidden initially */
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 1.5s ease-in;
+  max-width: 600px;
+  padding: 20px;
+}
+
+#intro-phase p {
+  font-size: 1.1rem;
+  margin: 10px 0;
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+#intro-phase .highlight {
+  color: var(--accent);
+  font-weight: bold;
+  text-shadow: var(--glow);
+  margin-top: 20px;
+}
+
+#intro-phase button {
+  margin-top: 30px;
+  font-size: 1.2rem;
+  padding: 15px 40px;
+  animation: fadeInButton 3s ease forwards;
+  opacity: 0;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes fadeInButton {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================
+   MAIN GAME UI
+   ========================================= */
 .container {
   width: 100%;
   max-width: 900px;
@@ -59,52 +147,29 @@ body {
   display: flex;
   flex-direction: column;
   padding: 20px;
-  
-  /* Smooth transition for the Red Text effect */
   transition: all 0.8s ease-in-out; 
 }
 
-/* =========================================
-   TERMINAL WINDOW (OUTPUT)
-   ========================================= */
 .terminal {
-  flex: 1; /* Takes up all available space */
+  flex: 1; 
   background-color: var(--bg-terminal);
   border: 1px solid var(--text-muted);
   border-radius: 8px;
   padding: 20px;
-  
-  /* Text Styling */
-  white-space: pre-wrap; /* Preserves Javascript line breaks */
+  white-space: pre-wrap; 
   line-height: 1.5;
   font-size: 1rem;
-  overflow-y: auto; /* Scrollbar appears here */
-  
-  /* Visual Effects */
+  overflow-y: auto; 
   box-shadow: var(--glow);
-  text-shadow: 0 0 2px var(--text-main); /* Slight CRT blur effect */
+  text-shadow: 0 0 2px var(--text-main); 
   transition: border-color 0.5s ease, background-color 0.5s ease;
 }
 
-/* Custom Scrollbar for Terminal */
-.terminal::-webkit-scrollbar {
-  width: 10px;
-}
-.terminal::-webkit-scrollbar-track {
-  background: var(--bg-terminal);
-  border-left: 1px solid var(--text-muted);
-}
-.terminal::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 4px;
-}
-.terminal::-webkit-scrollbar-thumb:hover {
-  background: var(--text-main);
-}
+.terminal::-webkit-scrollbar { width: 10px; }
+.terminal::-webkit-scrollbar-track { background: var(--bg-terminal); border-left: 1px solid var(--text-muted); }
+.terminal::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+.terminal::-webkit-scrollbar-thumb:hover { background: var(--text-main); }
 
-/* =========================================
-   INPUT AREA
-   ========================================= */
 .input-row {
   margin-top: 15px;
   display: flex;
@@ -113,7 +178,7 @@ body {
 }
 
 input {
-  flex: 1; /* Takes up remaining space */
+  flex: 1; 
   background: transparent;
   border: 1px solid var(--text-muted);
   color: var(--text-main);
@@ -126,23 +191,12 @@ input {
   text-transform: uppercase;
 }
 
-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
-}
+input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+input:disabled { opacity: 0.5; cursor: not-allowed; border-color: #333; }
 
-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  border-color: #333;
-}
-
-/* =========================================
-   BUTTONS
-   ========================================= */
 button {
   background-color: var(--accent);
-  color: #000; /* Black text on buttons for contrast */
+  color: #000; 
   border: none;
   font-family: inherit;
   font-weight: bold;
@@ -155,25 +209,10 @@ button {
   min-width: 120px;
 }
 
-button:hover:not(:disabled) {
-  background-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
+button:hover:not(:disabled) { background-color: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { background-color: var(--text-muted); cursor: not-allowed; opacity: 0.3; }
 
-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-button:disabled {
-  background-color: var(--text-muted);
-  cursor: not-allowed;
-  opacity: 0.3;
-}
-
-/* =========================================
-   FOOTER
-   ========================================= */
 footer {
   margin-top: 15px;
   text-align: center;
@@ -183,26 +222,9 @@ footer {
   letter-spacing: 1px;
 }
 
-/* =========================================
-   RESPONSIVE TWEAKS (Mobile)
-   ========================================= */
 @media (max-width: 600px) {
-  .container {
-    padding: 10px;
-    height: 100vh;
-  }
-  
-  .terminal {
-    font-size: 0.9rem;
-  }
-  
-  .input-row {
-    flex-direction: column;
-    height: auto;
-  }
-  
-  input, button {
-    height: 50px;
-    width: 100%;
-  }
+  .container { padding: 10px; height: 100vh; }
+  .terminal { font-size: 0.9rem; }
+  .input-row { flex-direction: column; height: auto; }
+  input, button { height: 50px; width: 100%; }
 }
