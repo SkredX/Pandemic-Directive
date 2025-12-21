@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <title>Pandemic Directive: Zero Hour</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-3KNYNHZWV1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-3KNYNHZWV1');
+  </script>
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -55,21 +65,15 @@
     }
 
     function start() {
-      // Reload is effective for clearing state in this simple architecture
       location.reload();
     }
 
     function processTurn(choice = null) {
-      // Pass choice to core
       const result = advanceDay(choice);
 
-      // 1. Handle Visuals (Red Text)
       updateVisualState(result.critical);
-
-      // 2. Print Output
       print(result.text);
 
-      // 3. Handle Game End
       if (result.ended) {
         gameEnded = true;
         input.disabled = true;
@@ -78,14 +82,12 @@
         return;
       }
 
-      // 4. Setup Input for Next Turn
       if (result.choices > 0) {
         awaitingChoice = true;
         input.disabled = false;
         submitBtn.disabled = false;
         input.focus();
       } else {
-        // Fallback if we run out of content (shouldn't happen with 25 days)
         print("Signal lost...");
       }
     }
@@ -104,7 +106,6 @@
       submitBtn.disabled = true;
       awaitingChoice = false;
 
-      // Subtract 1 because array index is 0-based, user types 1-based
       processTurn(val - 1);
     });
 
@@ -114,7 +115,6 @@
 
     restartBtn.addEventListener("click", start);
 
-    // Initial Boot
     processTurn();
   </script>
 </body>
