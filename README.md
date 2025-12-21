@@ -1,14 +1,50 @@
-# Pandemic Directive
+# Pandemic Directive : Zero Hour
 
-Pandemic Directive is a browser based, choice driven simulation game that explores chaos theory and the butterfly effect through the lens of a global viral outbreak.
+Pandemic Directive : Zero Hour is a browser based, choice driven simulation game that explores chaos theory and the butterfly effect through the lens of a global viral outbreak.
 
 Small decisions made under uncertainty can cascade into irreversible global consequences. The game focuses on delayed effects, moral tradeoffs, and systemic collapse rather than binary good or bad choices.
 
 The project is fully client side and is hosted for free using GitHub Pages.
 
-Visit [https://skredx.github.io/](url) to play the game
 
----
+**Live Deployment:** https://skredx.github.io/
+
+
+The game features a dark, terminal-style interface with audio immersion and a high-difficulty mathematical model that simulates logistic viral growth and societal decay.
+
+## Features
+
+* **Simulation Engine:** A robust Javascript-based logic engine tracks infection spread using logistic growth models, ensuring statistics behave realistically rather than growing infinitely.
+* **Branching Narrative:** 25 days of unique scenarios involving border control, economic bailouts, ethical triage, and martial law.
+* **Interruption System:** Random events (e.g., Viral Mutations, Civil Wars) can occur between days, pausing the timeline and forcing immediate, high-stakes decisions.
+* **Visual Feedback:** The interface reacts to the game state. If the population drops below 70%, the terminal enters "Critical Mode," shifting the color scheme to red.
+* **Audio Immersion:** Includes a looped background drone track and typewriter sound effects synchronized with the text display.
+* **Google Analytics:** Integrated tracking for game start and game over events.
+
+## How to Play
+
+1.  **Initialize:** Click the "INITIALIZE PROTOCOLS" button on the loading screen to start the simulation and audio.
+2.  **Analyze:** Read the Daily Status Report and the current scenario text.
+3.  **Decide:** Input the number corresponding to your choice (e.g., 1 or 2) into the command line.
+4.  **Execute:** Press Enter or click the EXECUTE button.
+5.  **Survive:** Attempt to reach Day 25. The game ends early if:
+    * Population falls below 15% (Extinction).
+    * Economy falls below 20% (Collapse).
+    * Trust falls below 20% (Revolution).
+    * Healthcare reaches 100% load while Infection is over 50% (System Failure).
+
+## Installation
+
+To run this project locally:
+
+1.  Download or clone the repository.
+2.  Ensure the following files are in the same directory:
+    * index.html
+    * styles.css
+    * game_core.js
+    * bgm.mp3
+    * typewriter.mp3
+3.  Open index.html in any modern web browser (Chrome, Firefox, Edge).
 
 ## Core Concept
 
@@ -31,11 +67,6 @@ The same choice can lead to different outcomes depending on when and how it is m
 
 The game has multiple threshold based endings. None of them are reachable immediately.
 
-- Human extinction
-- Virus eradication at the cost of national collapse
-- Controlled eradication with reduced casualties
-- Long term generational damage to humanity
-
 Endings are determined by accumulated world state, not by scripted branches.
 
 ---
@@ -48,30 +79,6 @@ Endings are determined by accumulated world state, not by scripted branches.
 - GitHub Pages for hosting
 
 There is no backend, no server, and no external dependencies.
-
----
-
-## Project Structure
-
-```
-/
-├── index.html      Main UI and input handling
-├── game_core.js    Game logic and world simulation
-├── styles.css      Visual styling
-└── README.md
-```
-
----
-
-## How to Run Locally
-
-1. Clone the repository
-2. Open index.html in a modern browser
-3. Play
-
-No installation is required.
-
----
 
 ## Design Philosophy
 
