@@ -2,42 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Pandemic Directive</title>
+  <title>Pandemic Directive: Zero Hour</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <div class="container">
+  <div id="game-container" class="container">
     <div id="terminal" class="terminal"></div>
 
     <div class="input-row">
       <input
         id="choiceInput"
         type="number"
-        placeholder="Enter choice number..."
+        placeholder=">> COMMAND"
         min="1"
         disabled
       />
       <button id="submitBtn" disabled>EXECUTE</button>
-      <button id="restartBtn" style="display:none;">RESTART</button>
+      <button id="restartBtn" style="display:none;">SYSTEM REBOOT</button>
     </div>
 
     <footer>
-      <p>All decisions are irreversible.</p>
+      <p>Decisions are final. History is watching.</p>
     </footer>
   </div>
 
-  <!-- GAME CORE -->
   <script src="game_core.js"></script>
 
-  <!-- UI LOGIC -->
   <script>
+    // UI LINKING LOGIC
     const terminal = document.getElementById("terminal");
     const input = document.getElementById("choiceInput");
     const submitBtn = document.getElementById("submitBtn");
     const restartBtn = document.getElementById("restartBtn");
+    const container = document.getElementById("game-container");
 
     let awaitingChoice = false;
     let gameEnded = false;
@@ -47,20 +46,30 @@
       terminal.scrollTop = terminal.scrollHeight;
     }
 
-    function start() {
-      terminal.textContent = "";
-      gameEnded = false;
-      awaitingChoice = false;
+    function updateVisualState(isCritical) {
+      if (isCritical) {
+        container.classList.add("critical");
+      } else {
+        container.classList.remove("critical");
+      }
+    }
 
-      // Reset global state (reload page-safe)
+    function start() {
+      // Reload is effective for clearing state in this simple architecture
       location.reload();
     }
 
     function processTurn(choice = null) {
+      // Pass choice to core
       const result = advanceDay(choice);
 
+      // 1. Handle Visuals (Red Text)
+      updateVisualState(result.critical);
+
+      // 2. Print Output
       print(result.text);
 
+      // 3. Handle Game End
       if (result.ended) {
         gameEnded = true;
         input.disabled = true;
@@ -69,18 +78,15 @@
         return;
       }
 
+      // 4. Setup Input for Next Turn
       if (result.choices > 0) {
         awaitingChoice = true;
         input.disabled = false;
         submitBtn.disabled = false;
         input.focus();
       } else {
-        awaitingChoice = false;
-        input.disabled = true;
-        submitBtn.disabled = true;
-
-        // Auto-advance on days with no choices
-        setTimeout(() => processTurn(), 600);
+        // Fallback if we run out of content (shouldn't happen with 25 days)
+        print("Signal lost...");
       }
     }
 
@@ -89,7 +95,7 @@
 
       const val = parseInt(input.value, 10);
       if (isNaN(val) || val < 1) {
-        print("\n[INVALID INPUT]");
+        print("\n[ERROR: INVALID PARAMETER]");
         return;
       }
 
@@ -98,6 +104,7 @@
       submitBtn.disabled = true;
       awaitingChoice = false;
 
+      // Subtract 1 because array index is 0-based, user types 1-based
       processTurn(val - 1);
     });
 
@@ -107,7 +114,7 @@
 
     restartBtn.addEventListener("click", start);
 
-    // BOOT
+    // Initial Boot
     processTurn();
   </script>
 </body>
