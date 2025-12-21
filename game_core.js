@@ -3,269 +3,281 @@
 const state = {
   day: 1,
 
-  global_infection: 0.03,
-  mortality_rate: 0.015,
-  public_trust: 0.6,
-  economic_stability: 0.75,
-  healthcare_capacity: 0.85,
-  civil_unrest: 0.1,
+  infection: 0.04,
+  mortality: 0.02,
+  trust: 0.6,
+  economy: 0.75,
+  healthcare: 0.85,
+  unrest: 0.1,
 
   population: 1.0,
-  cumulative_cost: 0.0,
+  cost: 0,
 
   flags: {},
-  delayed_effects: []
+  delayed: []
 };
 
-function clampState() {
-  [
-    "global_infection",
-    "mortality_rate",
-    "public_trust",
-    "economic_stability",
-    "healthcare_capacity",
-    "civil_unrest",
-    "population"
-  ].forEach(k => {
-    state[k] = Math.max(0, Math.min(1, state[k]));
-  });
+// utility
+
+function clamp(v) {
+  return Math.max(0, Math.min(1, v));
 }
 
-// chaos engine
-
-function chaosNoise(scale = 0.03) {
+function noise(scale = 0.03) {
   return (Math.random() - 0.5) * scale;
 }
 
-function queueDelayedEffect(daysAhead, fn) {
-  state.delayed_effects.push({
-    triggerDay: state.day + daysAhead,
-    fn
-  });
+function queue(days, fn) {
+  state.delayed.push({ day: state.day + days, fn });
 }
 
-function resolveDelayedEffects() {
-  const ready = state.delayed_effects.filter(e => e.triggerDay <= state.day);
-  ready.forEach(e => e.fn());
-  state.delayed_effects = state.delayed_effects.filter(e => e.triggerDay > state.day);
+function resolveDelayed() {
+  state.delayed
+    .filter(e => e.day <= state.day)
+    .forEach(e => e.fn());
+  state.delayed = state.delayed.filter(e => e.day > state.day);
 }
 
-function naturalProgression() {
-  const spreadFactor = 1 + state.global_infection * 0.7;
-  state.global_infection *= spreadFactor;
+// daily system dynamics
 
-  const deaths = state.global_infection * state.mortality_rate * 0.045;
+function updateInfection() {
+  const growth = 1 + state.infection * 0.6;
+  state.infection *= growth;
+  state.infection += noise(0.02);
+}
+
+function updatePopulation() {
+  const deaths = state.infection * state.mortality * 0.05;
   state.population -= deaths;
-
-  state.healthcare_capacity -= state.global_infection * 0.02;
-  state.economic_stability -= state.civil_unrest * 0.03;
-
-  state.cumulative_cost += state.global_infection * 70;
 }
 
-// event definitions
+function updateEconomy() {
+  state.economy -= state.infection * 0.03;
+  state.economy -= state.unrest * 0.04;
+  state.economy += noise(0.02);
+}
 
-function day1Event() {
+function updateHealthcare() {
+  state.healthcare -= state.infection * 0.025;
+}
+
+function updateTrust() {
+  state.trust -= state.unrest * 0.03;
+  state.trust += noise(0.02);
+}
+
+function dailyUpdate() {
+  updateInfection();
+  updatePopulation();
+  updateEconomy();
+  updateHealthcare();
+  updateTrust();
+
+  state.cost += state.infection * 60;
+
+  resolveDelayed();
+
+  state.infection = clamp(state.infection);
+  state.population = clamp(state.population);
+  state.economy = clamp(state.economy);
+  state.healthcare = clamp(state.healthcare);
+  state.trust = clamp(state.trust);
+  state.unrest = clamp(state.unrest);
+}
+
+// daily status report
+
+function dailyReport() {
+  return `
+Population remaining: ${(state.population * 100).toFixed(1)}%
+Economic stability: ${(state.economy * 100).toFixed(1)}%
+Healthcare capacity: ${(state.healthcare * 100).toFixed(1)}%
+Public trust: ${(state.trust * 100).toFixed(1)}%
+Infection spread: ${(state.infection * 100).toFixed(1)}%
+`;
+}
+
+// micro choices
+
+function minorDecision() {
   return {
-    text: `Initial intelligence reports confirm a novel respiratory pathogen.
-Transmission vectors are unclear.
-Political leadership demands guidance.`,
+    text: "A routine policy adjustment is required.",
     choices: [
       {
-        text: "Release preliminary data immediately",
+        text: "Prioritize economic continuity",
         apply: () => {
-          state.public_trust += 0.07;
-          state.global_infection += 0.015;
+          state.economy += 0.03;
+          state.infection += 0.04;
         }
       },
       {
-        text: "Delay announcement pending verification",
+        text: "Prioritize health precautions",
         apply: () => {
-          state.public_trust += 0.02;
-          queueDelayedEffect(4, () => {
-            state.global_infection *= 2.2;
-          });
+          state.infection -= 0.02;
+          state.trust -= 0.02;
         }
       },
       {
-        text: "Suppress all information temporarily",
+        text: "Avoid intervention",
         apply: () => {
-          state.public_trust -= 0.15;
-          state.flags.censored_media = true;
-          queueDelayedEffect(6, () => {
-            state.civil_unrest += 0.35;
-          });
+          state.unrest += 0.03;
         }
       }
     ]
   };
 }
 
-function day4Event() {
-  return {
-    text: `Supply chains are destabilizing.
-Private logistics firms request emergency deregulation.`,
-    choices: [
-      {
-        text: "Deregulate immediately to stabilize supply",
-        apply: () => {
-          state.economic_stability += 0.05;
-          state.global_infection += 0.04;
-          state.flags.deregulated_supply = true;
-        }
-      },
-      {
-        text: "Maintain regulation despite shortages",
-        apply: () => {
-          state.public_trust -= 0.05;
-          state.economic_stability -= 0.1;
-          queueDelayedEffect(5, () => {
-            state.civil_unrest += 0.2;
-          });
-        }
-      }
-    ]
-  };
-}
+// major choices
 
-function day8Event() {
-  return {
-    text: `Hospitals are nearing capacity.
-Doctors request authority to triage aggressively.`,
-    choices: [
-      {
-        text: "Authorize aggressive triage protocols",
-        apply: () => {
-          state.healthcare_capacity += 0.1;
-          state.public_trust -= 0.2;
-          state.flags.triage_protocols = true;
-        }
-      },
-      {
-        text: "Preserve equal care standards",
-        apply: () => {
-          state.healthcare_capacity -= 0.15;
-          state.mortality_rate += 0.05;
-        }
-      }
-    ]
-  };
-}
-
-function day12Event() {
-  return {
-    text: `Mass demonstrations erupt across major cities.
-Security agencies warn of loss of control.`,
-    choices: [
-      {
-        text: "Deploy military forces",
-        apply: () => {
-          state.civil_unrest -= 0.15;
-          state.public_trust -= 0.35;
-          state.flags.weaponized_quarantine = true;
-          queueDelayedEffect(6, () => {
-            state.public_trust -= 0.2;
-          });
-        }
-      },
-      {
-        text: "Allow protests to continue",
-        apply: () => {
-          state.civil_unrest += 0.25;
-          state.economic_stability -= 0.15;
-        }
-      }
-    ]
-  };
-}
-
-function day18Event() {
-  return {
-    text: `A vaccine candidate shows promise.
-Pharmaceutical alliances demand exclusivity.`,
-    choices: [
-      {
-        text: "Fund open scientific collaboration",
-        apply: () => {
-          state.cumulative_cost += 400;
-          state.mortality_rate -= 0.04;
-          state.public_trust += 0.1;
-        }
-      },
-      {
-        text: "Grant exclusive corporate patents",
-        apply: () => {
-          state.cumulative_cost -= 250;
-          state.flags.sold_patents = true;
-          queueDelayedEffect(8, () => {
-            state.mortality_rate += 0.08;
-          });
-        }
-      }
-    ]
-  };
-}
-
-function day25Event() {
-  return {
-    text: `Containment analysts propose isolating an entire region.
-Evacuation is not feasible.`,
-    choices: [
-      {
-        text: "Authorize total regional lockdown",
-        apply: () => {
-          state.global_infection -= 0.25;
-          state.population -= 0.2;
-          state.public_trust -= 0.45;
-          state.flags.sacrificed_region = true;
-        }
-      },
-      {
-        text: "Reject the proposal",
-        apply: () => {
-          state.global_infection += 0.2;
-          queueDelayedEffect(5, () => {
-            state.healthcare_capacity -= 0.35;
-          });
-        }
-      }
-    ]
-  };
-}
-
-function getEventForDay(day) {
+function majorDecision(day) {
   const map = {
-    1: day1Event,
-    4: day4Event,
-    8: day8Event,
-    12: day12Event,
-    18: day18Event,
-    25: day25Event
+    1: {
+      text: "Early reports confirm a novel pathogen.",
+      choices: [
+        {
+          text: "Disclose information immediately",
+          apply: () => {
+            state.trust += 0.08;
+            state.infection += 0.02;
+          }
+        },
+        {
+          text: "Delay public announcement",
+          apply: () => {
+            queue(4, () => state.infection *= 2);
+          }
+        }
+      ]
+    },
+
+    5: {
+      text: "Corporate interests request emergency deregulation.",
+      choices: [
+        {
+          text: "Approve deregulation",
+          apply: () => {
+            state.economy += 0.06;
+            state.infection += 0.06;
+            state.flags.deregulated = true;
+          }
+        },
+        {
+          text: "Reject request",
+          apply: () => {
+            state.unrest += 0.05;
+            state.economy -= 0.04;
+          }
+        }
+      ]
+    },
+
+    10: {
+      text: "Hospitals request authority to triage aggressively.",
+      choices: [
+        {
+          text: "Authorize triage",
+          apply: () => {
+            state.healthcare += 0.1;
+            state.trust -= 0.15;
+            state.flags.triage = true;
+          }
+        },
+        {
+          text: "Maintain equal care",
+          apply: () => {
+            state.mortality += 0.05;
+          }
+        }
+      ]
+    },
+
+    15: {
+      text: "Protests intensify across urban centers.",
+      choices: [
+        {
+          text: "Deploy security forces",
+          apply: () => {
+            state.unrest -= 0.1;
+            state.trust -= 0.2;
+            state.flags.militarized = true;
+          }
+        },
+        {
+          text: "Allow protests",
+          apply: () => {
+            state.unrest += 0.15;
+            state.economy -= 0.08;
+          }
+        }
+      ]
+    },
+
+    20: {
+      text: "Vaccine research shows promise.",
+      choices: [
+        {
+          text: "Fund open collaboration",
+          apply: () => {
+            state.mortality -= 0.05;
+            state.cost += 300;
+          }
+        },
+        {
+          text: "Grant exclusive patents",
+          apply: () => {
+            state.flags.patents = true;
+            queue(7, () => state.mortality += 0.08);
+          }
+        }
+      ]
+    },
+
+    25: {
+      text: "A region could be sealed to stop spread.",
+      choices: [
+        {
+          text: "Authorize regional sacrifice",
+          apply: () => {
+            state.population -= 0.2;
+            state.infection -= 0.3;
+            state.trust -= 0.3;
+            state.flags.sacrifice = true;
+          }
+        },
+        {
+          text: "Reject proposal",
+          apply: () => {
+            state.infection += 0.2;
+          }
+        }
+      ]
+    }
   };
-  return map[day] ? map[day]() : null;
+
+  return map[day];
 }
 
 // endings
 
 function checkEnding() {
-  if (state.day < 30) return null;
+  if (state.day < 16) return null;
 
-  if (state.global_infection > 0.98 && state.healthcare_capacity < 0.1)
+  if (state.population < 0.25)
     return "HUMAN EXTINCTION";
 
   if (
-    state.global_infection < 0.06 &&
-    state.mortality_rate < 0.15 &&
-    !state.flags.sold_patents &&
-    !state.flags.sacrificed_region &&
-    !state.flags.weaponized_quarantine
+    state.infection < 0.08 &&
+    state.mortality < 0.2 &&
+    !state.flags.sacrifice &&
+    !state.flags.patents &&
+    !state.flags.militarized
   )
     return "CONTROLLED ERADICATION";
 
-  if (state.global_infection < 0.1 && state.economic_stability < 0.1)
-    return "COUNTRY SACRIFICED";
+  if (state.economy < 0.1)
+    return "COUNTRY COLLAPSE";
 
-  if (state.population < 0.5 || state.public_trust < 0.15)
+  if (state.trust < 0.15)
     return "GENERATIONAL TRAUMA";
 
   return null;
@@ -275,48 +287,37 @@ function checkEnding() {
 
 function advanceDay(choiceIndex = null) {
   let output = [];
-
-  output.push("────────────────────────────────────");
+  output.push("──────────────────────────────");
   output.push(`DAY ${state.day}`);
+  output.push(dailyReport());
 
-  naturalProgression();
+  dailyUpdate();
 
-  const event = getEventForDay(state.day);
-  if (event) {
-    output.push(event.text);
-    output.push("");
-    event.choices.forEach((c, i) => {
-      output.push(`${i + 1}) ${c.text}`);
-    });
+  let event = majorDecision(state.day) || minorDecision();
 
-    if (choiceIndex !== null && event.choices[choiceIndex]) {
-      event.choices[choiceIndex].apply();
-    }
-  } else {
-    output.push("No major decisions today.");
+  output.push(event.text);
+  output.push("");
+
+  event.choices.forEach((c, i) => {
+    output.push(`${i + 1}) ${c.text}`);
+  });
+
+  if (choiceIndex !== null && event.choices[choiceIndex]) {
+    event.choices[choiceIndex].apply();
   }
-
-  resolveDelayedEffects();
-
-  // Chaos perturbation
-  state.global_infection += chaosNoise();
-  state.public_trust += chaosNoise();
-  state.economic_stability += chaosNoise();
-
-  clampState();
 
   const ending = checkEnding();
   state.day += 1;
 
   if (ending) {
     output.push("");
-    output.push("====================================");
+    output.push("================================");
     output.push(`ENDING REACHED: ${ending}`);
   }
 
   return {
     text: output.join("\n"),
-    choices: event ? event.choices.length : 0,
+    choices: event.choices.length,
     ended: Boolean(ending)
   };
 }
