@@ -4,7 +4,9 @@ Pandemic Directive is a browser based, choice driven simulation game that explor
 
 Small decisions made under uncertainty can cascade into irreversible global consequences. The game focuses on delayed effects, moral tradeoffs, and systemic collapse rather than binary good or bad choices.
 
-The project is fully client side and can be hosted for free using GitHub Pages.
+The project is fully client side and is hosted for free using GitHub Pages.
+
+Visit [https://skredx.github.io/](url) to play the game
 
 ---
 
