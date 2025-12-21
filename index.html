@@ -5,12 +5,12 @@
   <title>Pandemic Directive: Zero Hour</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Google Analytics (GA4) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3KNYNHZWV1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
+
     gtag('config', 'G-3KNYNHZWV1');
   </script>
 
@@ -18,6 +18,25 @@
 </head>
 
 <body>
+  <div id="loading-overlay">
+    
+    <div id="loading-phase">
+      <div class="loading-text">ESTABLISHING SECURE CONNECTION...</div>
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div id="intro-phase" style="display: none; opacity: 0;">
+      <p>Welcome to the command group.</p>
+      <p>Our nation has just noted a novel infection.</p>
+      <p>You are recruited to guide the decision makers towards the right step.</p>
+      <p class="highlight">Stay prepared to lead from the shadows.</p>
+      
+      <button id="enter-btn">INITIALIZE PROTOCOLS</button>
+    </div>
+  </div>
+
   <div id="game-container" class="container">
     <div id="terminal" class="terminal"></div>
 
@@ -41,7 +60,52 @@
   <script src="game_core.js"></script>
 
   <script>
-    // UI LINKING LOGIC
+    // --- INTRO SEQUENCE LOGIC ---
+    window.addEventListener('load', () => {
+      const bar = document.getElementById('progress-bar');
+      const loadingPhase = document.getElementById('loading-phase');
+      const introPhase = document.getElementById('intro-phase');
+      const overlay = document.getElementById('loading-overlay');
+      const enterBtn = document.getElementById('enter-btn');
+
+      // 1. Start Loading Bar Animation
+      setTimeout(() => {
+        bar.style.width = '100%';
+      }, 100);
+
+      // 2. Transition to Text (After 2.5s)
+      setTimeout(() => {
+        loadingPhase.style.opacity = '0';
+        
+        // Wait for fade out, then switch
+        setTimeout(() => {
+          loadingPhase.style.display = 'none';
+          introPhase.style.display = 'flex'; // Make visible
+          
+          // Trigger reflow to enable transition
+          void introPhase.offsetWidth; 
+          introPhase.style.opacity = '1';
+        }, 500);
+
+      }, 2500);
+
+      // 3. Enter Game
+      enterBtn.addEventListener('click', () => {
+        // Optional: Send a custom event to GA4 when game starts
+        if (typeof gtag === 'function') {
+          gtag('event', 'game_start', {
+            'event_category': 'engagement'
+          });
+        }
+
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 800);
+      });
+    });
+
+    // --- GAME UI LOGIC ---
     const terminal = document.getElementById("terminal");
     const input = document.getElementById("choiceInput");
     const submitBtn = document.getElementById("submitBtn");
@@ -79,6 +143,13 @@
         input.disabled = true;
         submitBtn.disabled = true;
         restartBtn.style.display = "inline-block";
+        
+        // Optional: Send event to GA4 when game ends
+        if (typeof gtag === 'function') {
+            gtag('event', 'game_over', {
+                'result': result.text.split('\n')[0] // Captures the ending title
+            });
+        }
         return;
       }
 
@@ -115,6 +186,7 @@
 
     restartBtn.addEventListener("click", start);
 
+    // Boot Game Engine
     processTurn();
   </script>
 </body>
