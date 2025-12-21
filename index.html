@@ -10,14 +10,49 @@
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-
     gtag('config', 'G-3KNYNHZWV1');
   </script>
 
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Add a cursor effect for the typing animation */
+    .typing-cursor::after {
+      content: '█';
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+      color: var(--accent);
+    }
+    
+    /* Intro text specific styling to match previous layout */
+    #intro-text-container {
+      font-family: "Courier New", Courier, monospace;
+      white-space: pre-wrap;
+      text-align: left; /* Typewriter looks better left-aligned usually, but centered works too */
+      max-width: 600px;
+      min-height: 150px; /* Reserve space so it doesn't jump */
+      margin-bottom: 20px;
+      line-height: 1.6;
+      color: #d1d5db;
+    }
+    
+    /* Ensure the highlight class works when injected via JS */
+    .highlight-text {
+      color: var(--accent);
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+    }
+  </style>
 </head>
 
 <body>
+  <audio id="bgm" loop>
+    <source src="bgm.mp3" type="audio/mpeg">
+  </audio>
+  
+  <audio id="sfx-typewriter" loop>
+    <source src="typewriter.mp3" type="audio/mpeg">
+  </audio>
+
   <div id="loading-overlay">
     
     <div id="loading-phase">
@@ -28,12 +63,9 @@
     </div>
 
     <div id="intro-phase" style="display: none; opacity: 0;">
-      <p>Welcome to the command group.</p>
-      <p>Our nation has just noted a novel infection.</p>
-      <p>You are recruited to guide the decision makers towards the right step.</p>
-      <p class="highlight">Stay prepared to lead from the shadows.</p>
+      <div id="intro-text-container"></div>
       
-      <button id="enter-btn">INITIALIZE PROTOCOLS</button>
+      <button id="enter-btn" style="opacity: 0; pointer-events: none; transition: opacity 1s;">INITIALIZE PROTOCOLS</button>
     </div>
   </div>
 
@@ -60,47 +92,142 @@
   <script src="game_core.js"></script>
 
   <script>
+    // --- AUDIO CONTROLLER ---
+    const audioCtrl = {
+      bgm: document.getElementById('bgm'),
+      sfx: document.getElementById('sfx-typewriter'),
+      
+      startMusic: function() {
+        this.bgm.volume = 0.4; 
+        this.bgm.play().catch(e => console.log("BGM blocked until interaction"));
+      },
+
+      startTypingSound: function() {
+        this.sfx.currentTime = 0;
+        this.sfx.volume = 0.35; 
+        // We catch errors because browsers block audio before interaction.
+        // The intro typing might be silent, but game typing will have sound.
+        this.sfx.play().catch(e => {}); 
+      },
+
+      stopTypingSound: function() {
+        this.sfx.pause();
+        this.sfx.currentTime = 0;
+      },
+
+      stopMusic: function() {
+        let vol = this.bgm.volume;
+        const fade = setInterval(() => {
+          if (vol > 0.05) {
+            vol -= 0.05;
+            this.bgm.volume = vol;
+          } else {
+            clearInterval(fade);
+            this.bgm.pause();
+          }
+        }, 200);
+      }
+    };
+
+    // --- TYPEWRITER ENGINE ---
+    // Types text into a specific element, then calls callback()
+    function typeText(element, text, speed = 25, callback = null) {
+      let i = 0;
+      
+      // Start Audio Loop
+      audioCtrl.startTypingSound();
+      
+      // Add cursor class
+      element.classList.add("typing-cursor");
+
+      function type() {
+        if (i < text.length) {
+          // Handle newline characters specifically for HTML
+          if (text.charAt(i) === "\n") {
+            element.appendChild(document.createElement("br"));
+          } else {
+            // Append text node to avoid re-rendering entire HTML repeatedly
+            element.appendChild(document.createTextNode(text.charAt(i)));
+          }
+          
+          // Auto-scroll logic depending on element type
+          if (element.id === "terminal") {
+            element.scrollTop = element.scrollHeight;
+          }
+          
+          i++;
+          setTimeout(type, speed);
+        } else {
+          // Finished Typing
+          audioCtrl.stopTypingSound();
+          element.classList.remove("typing-cursor");
+          if (callback) callback();
+        }
+      }
+      
+      type();
+    }
+
     // --- INTRO SEQUENCE LOGIC ---
+    const introText = "Welcome to the command group.\n\nOur nation has just noted a novel infection.\n\nYou are recruited to guide the decision makers towards the right step.\n\nStay prepared to lead from the shadows.";
+
     window.addEventListener('load', () => {
       const bar = document.getElementById('progress-bar');
       const loadingPhase = document.getElementById('loading-phase');
       const introPhase = document.getElementById('intro-phase');
+      const introContainer = document.getElementById('intro-text-container');
       const overlay = document.getElementById('loading-overlay');
       const enterBtn = document.getElementById('enter-btn');
 
-      // 1. Start Loading Bar Animation
+      // 1. Loading Bar Animation
       setTimeout(() => {
         bar.style.width = '100%';
       }, 100);
 
-      // 2. Transition to Text (After 2.5s)
+      // 2. Switch to Intro & Start Typing (After 2.5s)
       setTimeout(() => {
         loadingPhase.style.opacity = '0';
         
-        // Wait for fade out, then switch
         setTimeout(() => {
           loadingPhase.style.display = 'none';
-          introPhase.style.display = 'flex'; // Make visible
+          introPhase.style.display = 'flex'; 
+          introPhase.style.flexDirection = 'column';
+          introPhase.style.alignItems = 'center';
           
-          // Trigger reflow to enable transition
           void introPhase.offsetWidth; 
           introPhase.style.opacity = '1';
-        }, 500);
 
+          // START TYPING INTRO
+          // Note: Audio might not play here if user hasn't interacted with page yet.
+          // This is a browser security restriction.
+          typeText(introContainer, introText, 40, () => {
+            // Highlight the last sentence manually after typing
+            introContainer.innerHTML = introContainer.innerHTML.replace(
+              "Stay prepared to lead from the shadows.", 
+              "<span class='highlight-text'>Stay prepared to lead from the shadows.</span>"
+            );
+            
+            // Show Enter Button
+            enterBtn.style.opacity = '1';
+            enterBtn.style.pointerEvents = 'auto';
+          });
+
+        }, 500);
       }, 2500);
 
-      // 3. Enter Game
+      // 3. User Clicks Enter -> Game Starts
       enterBtn.addEventListener('click', () => {
-        // Optional: Send a custom event to GA4 when game starts
+        audioCtrl.startMusic(); // Start BGM
+
         if (typeof gtag === 'function') {
-          gtag('event', 'game_start', {
-            'event_category': 'engagement'
-          });
+          gtag('event', 'game_start', { 'event_category': 'engagement' });
         }
 
         overlay.style.opacity = '0';
         setTimeout(() => {
           overlay.style.display = 'none';
+          // Start the Game Loop
+          processTurn(); 
         }, 800);
       });
     });
@@ -115,11 +242,6 @@
     let awaitingChoice = false;
     let gameEnded = false;
 
-    function print(text) {
-      terminal.textContent += text + "\n";
-      terminal.scrollTop = terminal.scrollHeight;
-    }
-
     function updateVisualState(isCritical) {
       if (isCritical) {
         container.classList.add("critical");
@@ -133,42 +255,65 @@
     }
 
     function processTurn(choice = null) {
+      // 1. Get Logic Result
       const result = advanceDay(choice);
-
       updateVisualState(result.critical);
-      print(result.text);
 
-      if (result.ended) {
-        gameEnded = true;
-        input.disabled = true;
-        submitBtn.disabled = true;
-        restartBtn.style.display = "inline-block";
+      // 2. Disable Inputs during animation
+      input.disabled = true;
+      submitBtn.disabled = true;
+
+      // 3. Prepare the new text block
+      // We create a container span so the typing effect happens only on new text
+      const newBlock = document.createElement("div");
+      newBlock.style.marginBottom = "20px"; // Spacing between turns
+      terminal.appendChild(newBlock);
+
+      // 4. Run Typewriter Effect
+      typeText(newBlock, result.text, 15, () => {
+        // Animation Complete Callback
         
-        // Optional: Send event to GA4 when game ends
-        if (typeof gtag === 'function') {
-            gtag('event', 'game_over', {
-                'result': result.text.split('\n')[0] // Captures the ending title
-            });
+        if (result.ended) {
+          gameEnded = true;
+          restartBtn.style.display = "inline-block";
+          audioCtrl.stopMusic();
+          
+          if (typeof gtag === 'function') {
+              gtag('event', 'game_over', {
+                  'result': result.text.split('\n')[0] 
+              });
+          }
+          return;
         }
-        return;
-      }
 
-      if (result.choices > 0) {
-        awaitingChoice = true;
-        input.disabled = false;
-        submitBtn.disabled = false;
-        input.focus();
-      } else {
-        print("Signal lost...");
-      }
+        if (result.choices > 0) {
+          awaitingChoice = true;
+          input.disabled = false;
+          submitBtn.disabled = false;
+          input.focus();
+        } else {
+          // If no choices (unlikely in this build), just wait
+          const noSig = document.createElement("div");
+          noSig.textContent = "Signal lost...";
+          terminal.appendChild(noSig);
+        }
+      });
     }
 
     submitBtn.addEventListener("click", () => {
       if (!awaitingChoice || gameEnded) return;
 
       const val = parseInt(input.value, 10);
-      if (isNaN(val) || val < 1) {
-        print("\n[ERROR: INVALID PARAMETER]");
+      
+      // Basic input validation before sending to logic
+      // (The core logic also has validation, but this saves a cycle)
+      if (isNaN(val)) {
+        // Just print error directly without typewriter to save time? 
+        // Or use typewriter for consistency. Let's use typewriter.
+        const errBlock = document.createElement("div");
+        terminal.appendChild(errBlock);
+        typeText(errBlock, "\n[ERROR: INVALID PARAMETER]", 10);
+        input.value = "";
         return;
       }
 
@@ -177,6 +322,7 @@
       submitBtn.disabled = true;
       awaitingChoice = false;
 
+      // Pass choice to logic (0-indexed)
       processTurn(val - 1);
     });
 
@@ -186,8 +332,8 @@
 
     restartBtn.addEventListener("click", start);
 
-    // Boot Game Engine
-    processTurn();
+    // Note: We do NOT call processTurn() here automatically anymore.
+    // It is called inside the Enter Button click listener.
   </script>
 </body>
 </html>
