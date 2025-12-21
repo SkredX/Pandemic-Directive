@@ -71,20 +71,6 @@ No installation is required.
 
 ---
 
-## How to Host on GitHub Pages
-
-1. Push the repository to GitHub
-2. Go to repository Settings
-3. Open the Pages section
-4. Select branch main and root directory
-5. Save
-
-Your game will be available at:
-
-https://yourusername.github.io/repository-name/
-
----
-
 ## Design Philosophy
 
 - Choices modify systems, not outcomes
