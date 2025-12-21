@@ -2,9 +2,7 @@
  * PANDEMIC DIRECTIVE
  */
 
-// ==========================================
-// 1. GAME STATE INITIALIZATION
-// ==========================================
+// game state
 
 const state = {
   day: 1,
@@ -27,9 +25,7 @@ const state = {
   }
 };
 
-// ==========================================
-// 2. UTILITY FUNCTIONS
-// ==========================================
+// utility functions
 
 function clamp(v) {
   return Math.max(0, Math.min(1, v));
@@ -39,9 +35,7 @@ function noise(scale = 0.02) {
   return (Math.random() - 0.5) * scale;
 }
 
-// ==========================================
-// 3. SYSTEM DYNAMICS (The Simulation Engine)
-// ==========================================
+// system
 
 function runDailySimulation() {
   // --- INFECTION DYNAMICS ---
@@ -98,9 +92,7 @@ function runDailySimulation() {
   state.trust = clamp(state.trust);
 }
 
-// ==========================================
-// 4. SCENARIO ENGINE (Days 1-25)
-// ==========================================
+// scenario
 
 const scenarios = {
   1: {
@@ -605,9 +597,7 @@ const scenarios = {
   }
 };
 
-// ==========================================
-// 5. ENDING CONDITIONS
-// ==========================================
+// ending conditions
 
 function checkEnding() {
   if (state.day < 16) return null;
@@ -652,9 +642,7 @@ function checkEnding() {
   return null;
 }
 
-// ==========================================
-// 6. MAIN GAME LOOP API
-// ==========================================
+// main game api
 
 function getStatusReport() {
   return `
