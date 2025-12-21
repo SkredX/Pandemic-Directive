@@ -1,58 +1,114 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Pandemic: Butterfly Effect</title>
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
-  <style>
-    body {
-      background: black;
-      color: #00ffcc;
-      font-family: monospace;
-      padding: 20px;
-    }
-    #terminal {
-      white-space: pre-wrap;
-    }
-    input {
-      background: black;
-      color: #00ffcc;
-      border: none;
-      outline: none;
-      font-family: monospace;
-      width: 100%;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Pandemic Directive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-<div id="terminal"></div>
-<input id="input" placeholder="Enter choice number..." autofocus />
+  <div class="container">
+    <div id="terminal" class="terminal"></div>
 
-<script>
-let pyodide;
-let awaitingChoice = false;
+    <div class="input-row">
+      <input
+        id="choiceInput"
+        type="number"
+        placeholder="Enter choice number..."
+        min="1"
+        disabled
+      />
+      <button id="submitBtn" disabled>EXECUTE</button>
+      <button id="restartBtn" style="display:none;">RESTART</button>
+    </div>
 
-async function main() {
-  pyodide = await loadPyodide();
-  await pyodide.runPythonAsync(await (await fetch("game_core.py")).text());
+    <footer>
+      <p>All decisions are irreversible.</p>
+    </footer>
+  </div>
 
-  const output = pyodide.runPython("start_game()");
-  document.getElementById("terminal").textContent += output + "\n";
-  awaitingChoice = true;
-}
+  <!-- GAME CORE -->
+  <script src="game_core.js"></script>
 
-document.getElementById("input").addEventListener("keydown", async (e) => {
-  if (e.key === "Enter" && awaitingChoice) {
-    const val = parseInt(e.target.value) - 1;
-    e.target.value = "";
+  <!-- UI LOGIC -->
+  <script>
+    const terminal = document.getElementById("terminal");
+    const input = document.getElementById("choiceInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const restartBtn = document.getElementById("restartBtn");
 
-    const out = pyodide.runPython(`make_choice(${val})`);
-    document.getElementById("terminal").textContent += "\n" + out + "\n";
-  }
-});
+    let awaitingChoice = false;
+    let gameEnded = false;
 
-main();
-</script>
+    function print(text) {
+      terminal.textContent += text + "\n";
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function start() {
+      terminal.textContent = "";
+      gameEnded = false;
+      awaitingChoice = false;
+
+      // Reset global state (reload page-safe)
+      location.reload();
+    }
+
+    function processTurn(choice = null) {
+      const result = advanceDay(choice);
+
+      print(result.text);
+
+      if (result.ended) {
+        gameEnded = true;
+        input.disabled = true;
+        submitBtn.disabled = true;
+        restartBtn.style.display = "inline-block";
+        return;
+      }
+
+      if (result.choices > 0) {
+        awaitingChoice = true;
+        input.disabled = false;
+        submitBtn.disabled = false;
+        input.focus();
+      } else {
+        awaitingChoice = false;
+        input.disabled = true;
+        submitBtn.disabled = true;
+
+        // Auto-advance on days with no choices
+        setTimeout(() => processTurn(), 600);
+      }
+    }
+
+    submitBtn.addEventListener("click", () => {
+      if (!awaitingChoice || gameEnded) return;
+
+      const val = parseInt(input.value, 10);
+      if (isNaN(val) || val < 1) {
+        print("\n[INVALID INPUT]");
+        return;
+      }
+
+      input.value = "";
+      input.disabled = true;
+      submitBtn.disabled = true;
+      awaitingChoice = false;
+
+      processTurn(val - 1);
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitBtn.click();
+    });
+
+    restartBtn.addEventListener("click", start);
+
+    // BOOT
+    processTurn();
+  </script>
 </body>
 </html>
