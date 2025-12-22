@@ -1,10 +1,9 @@
 /**
  * PANDEMIC DIRECTIVE: ZERO HOUR
- * CORE LOGIC - BALANCED & BOUNDED
  */
 
 // ==========================================
-// 1. GAME STATE
+// 1. GAME STATE & ADVISORS
 // ==========================================
 
 const state = {
@@ -19,13 +18,25 @@ const state = {
   infection: 0.05,      
   healthcare_load: 0.10, 
 
+  // ADVISOR LOYALTY (0 to 100)
+  advisors: {
+    kael: 50, // General Kael: Prioritizes Order, Economy, Military
+    aris: 50  // Dr. Aris: Prioritizes Life, Science, Truth
+  },
+
+  // NARRATIVE TRACKING
+  arc: 'main', // 'main', 'riots', 'cure_race'
+  arcProgress: 0,
+  
   // SYSTEM FLAGS
   flags: {
-    criticalMode: false, // Triggers Red Text at < 70%
+    criticalMode: false, 
     lockdown: false,
     militarized: false,
     cure_progress: 0,
-    sterility: false
+    sterility: false,
+    kael_rebelled: false,
+    aris_resigned: false
   },
 
   activeInterruption: null 
@@ -35,7 +46,6 @@ const state = {
 // 2. UTILITY & MATH
 // ==========================================
 
-// Hard clamp to ensure no 130% or -10% bugs
 function clamp(v) {
   return Math.max(0, Math.min(1, v));
 }
@@ -46,672 +56,356 @@ function normalizeState() {
   state.trust = clamp(state.trust);
   state.infection = clamp(state.infection);
   state.healthcare_load = clamp(state.healthcare_load);
+  
+  // Clamp Advisors
+  state.advisors.kael = Math.max(0, Math.min(100, state.advisors.kael));
+  state.advisors.aris = Math.max(0, Math.min(100, state.advisors.aris));
 }
 
 function noise(scale = 0.02) {
   return (Math.random() - 0.5) * scale;
 }
 
+// Adjust Advisor Loyalty
+function modifyLoyalty(advisor, amount) {
+  if (advisor === 'kael') {
+    state.advisors.kael += amount;
+    state.advisors.aris -= (amount / 2); // Rivalry
+  } else if (advisor === 'aris') {
+    state.advisors.aris += amount;
+    state.advisors.kael -= (amount / 2);
+  }
+}
+
 // ==========================================
-// 3. SYSTEM DYNAMICS (The Balanced Math Engine)
+// 3. SYSTEM DYNAMICS
 // ==========================================
 
 function runDailySimulation() {
-  // 1. INFECTION SPREAD (LOGISTIC GROWTH)
-  // This prevents infection from exceeding 100% naturally.
-  // Growth slows down as it reaches saturation.
-  let spreadRate = 0.15; // Base spread speed
+  // --- INFECTION (Logistic Growth) ---
+  let spreadRate = 0.15; 
+  if (state.flags.lockdown) spreadRate -= 0.10;
+  if (state.trust < 0.3) spreadRate += 0.05;
+  if (state.healthcare_load > 0.9) spreadRate += 0.05; 
   
-  // Modifiers
-  if (state.flags.lockdown) spreadRate -= 0.10; // Lockdowns work
-  if (state.trust < 0.3) spreadRate += 0.05; // Distrust spreads virus
-  if (state.healthcare_load > 0.9) spreadRate += 0.05; // Full hospitals spread virus
-  
-  // Logistic Formula: New = Old + (Rate * Old * (1 - Old))
+  // Endless Mode Scaling (Gets harder over time)
+  if (state.day > 25) spreadRate += 0.02 * (state.day - 25);
+
   let growth = spreadRate * state.infection * (1 - state.infection);
-  state.infection += growth;
-  
-  // Add minor randomness
-  state.infection += noise(0.01);
+  state.infection += growth + noise(0.01);
 
-  // 2. HEALTHCARE LOAD
-  // Follows infection but lags slightly
-  let targetLoad = state.infection * 1.2; // Hospitals feel 1.2x the pressure of infection
-  // Move current load towards target load smoothly (10% per day)
+  // --- HEALTHCARE ---
+  let targetLoad = state.infection * 1.2;
   state.healthcare_load += (targetLoad - state.healthcare_load) * 0.2;
-  state.healthcare_load += 0.01; // Base fatigue
+  state.healthcare_load += 0.01;
 
-  // 3. ECONOMY
-  // Reduced decay. Only crashes if infection/unrest is high.
-  let ecoDecay = 0.005; // Very slow base decay (0.5%)
-  
-  if (state.flags.lockdown) ecoDecay += 0.02; // Lockdowns hurt (2%)
-  if (state.infection > 0.4) ecoDecay += 0.01; // Sick workforce
-  if (state.trust < 0.3) ecoDecay += 0.02; // Riots
-  
+  // --- ECONOMY ---
+  let ecoDecay = 0.005;
+  if (state.flags.lockdown) ecoDecay += 0.02;
+  if (state.infection > 0.4) ecoDecay += 0.01;
+  if (state.trust < 0.3) ecoDecay += 0.02;
   state.economy -= ecoDecay;
 
-  // 4. POPULATION
-  // Deaths are rare early on, ramping up only if overwhelmed.
-  let mortalityRate = 0.001; // Base natural mortality
-  
-  // Infection kills based on spread
+  // --- POPULATION ---
+  let mortalityRate = 0.001; 
   mortalityRate += (state.infection * 0.01);
-  
-  // Collapse Modifier: If hospitals are full, people die much faster
-  if (state.healthcare_load > 0.95) {
-    mortalityRate += 0.02; // +2% population loss per day (Severe)
-  }
-  
+  if (state.healthcare_load > 0.95) mortalityRate += 0.02;
   state.population -= mortalityRate;
 
-  // 5. PUBLIC TRUST
-  // Decays if things go bad.
+  // --- TRUST ---
   if (state.economy < 0.4) state.trust -= 0.01;
   if (state.population < 0.9) state.trust -= 0.01;
-  if (state.infection > 0.5) state.trust -= 0.01;
 
-  // Final Safety Check
+  // --- ADVISOR CHECK ---
+  // If loyalty hits 0, major penalty
+  if (state.advisors.kael <= 0 && !state.flags.kael_rebelled) {
+    state.flags.kael_rebelled = true;
+    state.trust -= 0.15;
+    state.flags.militarized = false; // Army deserts
+    triggerInterruption("COUP ATTEMPT", "General Kael has turned the military against you. Order is collapsing.", [
+      { text: "Fight back (Civil War)", effect: (s) => { s.population -= 0.10; s.trust -= 0.10; } }
+    ]);
+  }
+  
+  if (state.advisors.aris <= 0 && !state.flags.aris_resigned) {
+    state.flags.aris_resigned = true;
+    state.healthcare_load += 0.20; // Doctors strike
+    state.trust -= 0.10;
+    triggerInterruption("MEDICAL STRIKE", "Dr. Aris has resigned in protest. Medical staff are walking out.", [
+      { text: "Force them to work", effect: (s) => { s.trust -= 0.15; s.healthcare_load -= 0.05; } }
+    ]);
+  }
+
   normalizeState();
 }
 
 // ==========================================
-// 4. RANDOM SUDDEN EVENTS (Interruptions)
+// 4. SCENARIO & NARRATIVE ENGINE
 // ==========================================
 
-const randomEvents = [
-  {
-    id: 'mutation_spike',
-    text: "ALERT: VIRAL MUTATION DETECTED\nThe pathogen has shifted. Current protocols are failing.",
-    choices: [
-      {
-        text: "Emergency Protocols (Slows virus, hurts economy).",
-        effect: (s) => {
-          s.economy -= 0.05; 
-          s.infection -= 0.05;
+// --- NARRATIVE BRANCHES ---
+const storyArcs = {
+  // DEFAULT LINEAR PATH
+  main: {
+    1: {
+      text: "DAY 1: PATIENT ZERO\nGeneral Kael wants to secure the area. Dr. Aris wants to treat patients.",
+      choices: [
+        {
+          text: "[KAEL] Lockdown the sector. Suppress info.",
+          effect: (s) => { s.infection -= 0.02; s.trust -= 0.05; modifyLoyalty('kael', 10); }
+        },
+        {
+          text: "[ARIS] Declare emergency. Alert the public.",
+          effect: (s) => { s.trust += 0.05; s.economy -= 0.05; modifyLoyalty('aris', 10); }
         }
-      },
-      {
-        text: "Maintain Course.",
-        effect: (s) => {
-          s.infection += 0.08; 
+      ]
+    },
+    5: {
+      text: "DAY 5: CONTAINMENT BREACH\nThe virus has escaped the capital.",
+      choices: [
+        {
+          text: "[KAEL] Total Lockdown. Shoot curfew breakers.",
+          effect: (s) => { s.flags.lockdown = true; s.economy -= 0.10; s.infection -= 0.05; modifyLoyalty('kael', 15); }
+        },
+        {
+          text: "[ARIS] Voluntary isolation and contact tracing.",
+          effect: (s) => { s.infection += 0.08; s.trust += 0.05; modifyLoyalty('aris', 10); }
         }
-      }
-    ]
+      ]
+    },
+    10: {
+      text: "DAY 10: RESOURCE CRISIS\nWe are running out of supplies.",
+      choices: [
+        {
+          text: "[KAEL] Seize private assets.",
+          effect: (s) => { s.economy -= 0.05; s.trust -= 0.10; modifyLoyalty('kael', 10); }
+        },
+        {
+          text: "[ARIS] Request foreign aid (Debt).",
+          effect: (s) => { s.economy -= 0.10; s.healthcare_load -= 0.10; modifyLoyalty('aris', 10); }
+        }
+      ]
+    },
+    15: {
+      text: "DAY 15: THE VACCINE TRIALS\nDr. Aris believes she has a lead, but it requires dangerous testing.",
+      choices: [
+        {
+          text: "[ARIS] Authorize human trials on prisoners.",
+          effect: (s) => { s.flags.cure_progress += 30; s.trust -= 0.15; modifyLoyalty('aris', 15); }
+        },
+        {
+          text: "[KAEL] Focus resources on walls and guns.",
+          effect: (s) => { s.flags.militarized = true; s.infection -= 0.02; modifyLoyalty('kael', 10); }
+        }
+      ]
+    },
+    20: {
+      text: "DAY 20: BREAKING POINT\nSociety is fracturing.",
+      choices: [
+        {
+          text: "[KAEL] Martial Law. Suspend the constitution.",
+          effect: (s) => { s.trust -= 0.20; s.economy += 0.05; modifyLoyalty('kael', 20); }
+        },
+        {
+          text: "[ARIS] Form community support councils.",
+          effect: (s) => { s.trust += 0.10; s.economy -= 0.10; modifyLoyalty('aris', 10); }
+        }
+      ]
+    }
+    // Days between these are procedurally filled if not defined
   },
-  {
-    id: 'civil_unrest',
-    text: "ALERT: CIVIL UNREST\nProtests are erupting in major cities.",
-    choices: [
-      {
-        text: "Pacify with Aid (Costs money).",
-        effect: (s) => {
-          s.economy -= 0.05;
-          s.trust += 0.05;
-        }
-      },
-      {
-        text: "Deploy Police.",
-        effect: (s) => {
-          s.trust -= 0.08;
-          s.flags.militarized = true;
-        }
-      }
-    ]
-  }
-];
 
-function triggerRandomEvent() {
-  // 30% chance of interruption between days 5 and 22
-  if (state.day > 5 && state.day < 22 && Math.random() < 0.30) {
-    const event = randomEvents[Math.floor(Math.random() * randomEvents.length)];
-    return event;
+  // BRANCH: RIOTS (Triggered by Trust < 0.3)
+  riots: [
+    {
+      text: "ARC: CIVIL WAR - DAY 1\nThe streets are burning. The virus is secondary to the violence now.",
+      choices: [
+        { text: "[KAEL] Deploy tanks. Crush them.", effect: (s) => { s.population -= 0.05; s.trust -= 0.20; modifyLoyalty('kael', 10); } },
+        { text: "Attempt to negotiate.", effect: (s) => { s.economy -= 0.10; s.trust += 0.05; } }
+      ]
+    },
+    {
+      text: "ARC: CIVIL WAR - DAY 2\nRebels have seized the power grid.",
+      choices: [
+        { text: "[KAEL] Storm the plant.", effect: (s) => { s.flags.militarized = true; s.economy -= 0.10; modifyLoyalty('kael', 10); } },
+        { text: "[ARIS] Divert emergency power to hospitals.", effect: (s) => { s.healthcare_load -= 0.10; s.economy -= 0.20; modifyLoyalty('aris', 10); } }
+      ]
+    }
+  ],
+
+  // BRANCH: CURE RACE (Triggered by Cure Progress > 50)
+  cure_race: [
+    {
+      text: "ARC: THE CURE - STAGE 1\nWe are close. We need massive compute power to finalize the formula.",
+      choices: [
+        { text: "[KAEL] Seize all bank servers.", effect: (s) => { s.economy -= 0.20; s.flags.cure_progress += 25; modifyLoyalty('kael', 10); } },
+        { text: "[ARIS] Collaborate globally (Share data).", effect: (s) => { s.flags.cure_progress += 15; s.trust += 0.10; modifyLoyalty('aris', 10); } }
+      ]
+    },
+    {
+      text: "ARC: THE CURE - STAGE 2\nThe formula is ready. Production is the bottleneck.",
+      choices: [
+        { text: "[ARIS] Distribute raw formula to all labs.", effect: (s) => { s.flags.cure_progress = 100; s.infection -= 0.20; modifyLoyalty('aris', 20); } },
+        { text: "[KAEL] Secure monopoly. Sell it.", effect: (s) => { s.economy += 0.50; s.trust -= 0.30; modifyLoyalty('kael', 20); } }
+      ]
+    }
+  ]
+};
+
+// --- ENDLESS MODE GENERATOR ---
+function generateEndlessScenario() {
+  const templates = [
+    {
+      title: "VIRAL MUTATION",
+      desc: "The virus has shifted. Immunity is dropping.",
+      choices: [
+        { text: "[ARIS] Rush new booster.", effect: (s) => { s.economy -= 0.10; s.infection -= 0.05; } },
+        { text: "Ignore it.", effect: (s) => { s.infection += 0.15; } }
+      ]
+    },
+    {
+      title: "ECONOMIC CRASH",
+      desc: "Markets are in freefall.",
+      choices: [
+        { text: "[KAEL] Austerity measures.", effect: (s) => { s.trust -= 0.10; s.economy += 0.10; } },
+        { text: "Print money.", effect: (s) => { s.economy -= 0.15; s.trust += 0.05; } }
+      ]
+    },
+    {
+      title: "SUPPLY CHAIN FAILURE",
+      desc: "Food is rotting in transit.",
+      choices: [
+        { text: "[KAEL] Military logistics.", effect: (s) => { s.flags.militarized = true; s.trust -= 0.05; } },
+        { text: "Let people starve.", effect: (s) => { s.population -= 0.05; s.trust -= 0.15; } }
+      ]
+    }
+  ];
+  
+  const template = templates[Math.floor(Math.random() * templates.length)];
+  return {
+    text: `SURVIVAL MODE: DAY ${state.day}\nEVENT: ${template.title}\n${template.desc}`,
+    choices: template.choices
+  };
+}
+
+// --- MAIN CONTENT FETCHING ---
+function getDailyContent() {
+  // 1. ENDLESS MODE
+  if (state.day > 25) {
+    return generateEndlessScenario();
   }
-  return null;
+
+  // 2. CHECK FOR ARC TRIGGERS (If not already in one)
+  if (state.arc === 'main') {
+    if (state.trust < 0.30) state.arc = 'riots';
+    if (state.flags.cure_progress > 50) state.arc = 'cure_race';
+  }
+
+  // 3. FETCH ARC CONTENT
+  if (state.arc === 'riots') {
+    if (storyArcs.riots[state.arcProgress]) {
+      const scen = storyArcs.riots[state.arcProgress];
+      state.arcProgress++; // Advance arc
+      return scen;
+    }
+    // If arc runs out, return to main or endless?
+    state.arc = 'main'; // Fallback
+  }
+
+  if (state.arc === 'cure_race') {
+    if (storyArcs.cure_race[state.arcProgress]) {
+      const scen = storyArcs.cure_race[state.arcProgress];
+      state.arcProgress++;
+      return scen;
+    }
+    state.arc = 'main';
+  }
+
+  // 4. MAIN TIMELINE (Fill gaps with generic events)
+  if (storyArcs.main[state.day]) {
+    return storyArcs.main[state.day];
+  } else {
+    // Generic filler for days 2, 3, 4 etc not defined in main
+    return {
+      text: `DAY ${state.day}: STATUS CHECK\nThe situation is evolving. Advisors await your command.`,
+      choices: [
+        { text: "[KAEL] Fortify Economy.", effect: (s) => { s.economy += 0.03; s.trust -= 0.02; modifyLoyalty('kael', 5); } },
+        { text: "[ARIS] Boost Healthcare.", effect: (s) => { s.healthcare_load -= 0.05; s.economy -= 0.03; modifyLoyalty('aris', 5); } }
+      ]
+    };
+  }
 }
 
 // ==========================================
-// 5. SCENARIO ENGINE (Days 1-25)
+// 5. INTERRUPTIONS & EVENTS
 // ==========================================
 
-const scenarios = {
-  1: {
-    text: "DAY 1: PATIENT ZERO\nReports indicate a novel pathogen in the capital. Mortality rate is estimated at 5%.",
-    choices: [
+function triggerInterruption(title, text, choices) {
+  state.activeInterruption = { text: `*** ${title} ***\n${text}`, choices: choices };
+}
+
+function checkRandomInterruption() {
+  if (state.day > 3 && Math.random() < 0.20 && !state.activeInterruption) {
+    const events = [
       {
-        text: "Suppress information to protect markets.",
-        effect: (s) => {
-          s.economy += 0.02; 
-          s.infection += 0.05; 
-          s.trust -= 0.02;
-        }
+        title: "ADVISOR DISPUTE",
+        text: "Kael and Aris are shouting in the war room.",
+        choices: [
+          { text: "Side with Kael.", effect: (s) => { modifyLoyalty('kael', 10); } },
+          { text: "Side with Aris.", effect: (s) => { modifyLoyalty('aris', 10); } }
+        ]
       },
       {
-        text: "Declare National Emergency.",
-        effect: (s) => {
-          s.economy -= 0.05; 
-          s.trust += 0.05; 
-          s.healthcare_load -= 0.02;
-        }
+        title: "DATA LEAK",
+        text: "True infection numbers have leaked.",
+        choices: [
+          { text: "Deny it.", effect: (s) => { s.trust -= 0.10; } },
+          { text: "Confirm it.", effect: (s) => { s.trust += 0.05; s.economy -= 0.05; } }
+        ]
       }
-    ]
-  },
-  2: {
-    text: "DAY 2: BORDER CONTROL\nNeighboring nations are watching.",
-    choices: [
-      {
-        text: "Close borders (Hits Economy).",
-        effect: (s) => {
-          s.economy -= 0.05;
-          s.infection -= 0.02; 
-          s.trust += 0.02;
-        }
-      },
-      {
-        text: "Keep trade routes open.",
-        effect: (s) => {
-          s.economy += 0.02;
-          s.infection += 0.05;
-        }
-      }
-    ]
-  },
-  3: {
-    text: "DAY 3: THE LEAK\nFootage of body bags is circulating online.",
-    choices: [
-      {
-        text: "Censor the internet.",
-        effect: (s) => {
-          s.trust -= 0.10; 
-          s.economy += 0.02;
-        }
-      },
-      {
-        text: "Address the nation honestly.",
-        effect: (s) => {
-          s.trust += 0.05;
-          s.economy -= 0.03; // Panic selling
-        }
-      }
-    ]
-  },
-  4: {
-    text: "DAY 4: EQUIPMENT SHORTAGE\nHospitals need ventilators.",
-    choices: [
-      {
-        text: "Nationalize Factories (Force production).",
-        effect: (s) => {
-          s.economy -= 0.05;
-          s.healthcare_load -= 0.10; 
-        }
-      },
-      {
-        text: "Import at high cost.",
-        effect: (s) => {
-          s.economy -= 0.10;
-          s.healthcare_load -= 0.05;
-        }
-      }
-    ]
-  },
-  5: {
-    text: "DAY 5: CONTAINMENT STRATEGY\nInfection is spreading beyond the capital.",
-    choices: [
-      {
-        text: "Total Lockdown (Drastic Economic Impact).",
-        effect: (s) => {
-          s.economy -= 0.10; 
-          s.infection -= 0.08; 
-          s.flags.lockdown = true;
-        }
-      },
-      {
-        text: "Advisory warnings only.",
-        effect: (s) => {
-          s.infection += 0.08; 
-          s.trust += 0.02;
-        }
-      }
-    ]
-  },
-  6: {
-    text: "DAY 6: SUPPLY CHAINS\nSupermarkets are emptying.",
-    choices: [
-      {
-        text: "Ration food (Military distribution).",
-        effect: (s) => {
-          s.trust -= 0.05;
-          s.flags.militarized = true;
-          s.population += 0.01; // Saves lives
-        }
-      },
-      {
-        text: "Let the market adjust.",
-        effect: (s) => {
-          s.economy += 0.02;
-          s.trust -= 0.05; // Poor starve
-          s.population -= 0.01;
-        }
-      }
-    ]
-  },
-  7: {
-    text: "DAY 7: RELIGIOUS GATHERING\nA major festival is approaching.",
-    choices: [
-      {
-        text: "Ban the gathering.",
-        effect: (s) => {
-          s.trust -= 0.08;
-          s.infection -= 0.03;
-        }
-      },
-      {
-        text: "Allow it.",
-        effect: (s) => {
-          s.infection += 0.10; // Spreader event
-          s.healthcare_load += 0.05;
-        }
-      }
-    ]
-  },
-  8: {
-    text: "DAY 8: TRIAGE\nHospitals are filling up.",
-    choices: [
-      {
-        text: "Prioritize the young (Turn away elderly).",
-        effect: (s) => {
-          s.healthcare_load -= 0.10;
-          s.population -= 0.02;
-          s.trust -= 0.10;
-        }
-      },
-      {
-        text: "First come, first served.",
-        effect: (s) => {
-          s.healthcare_load += 0.10;
-          s.trust += 0.02;
-        }
-      }
-    ]
-  },
-  9: {
-    text: "DAY 9: CORPORATE BAILOUT\nAirlines are bankrupt.",
-    choices: [
-      {
-        text: "Bail them out (Print money).",
-        effect: (s) => {
-          s.economy += 0.08;
-          s.trust -= 0.05;
-        }
-      },
-      {
-        text: "Let them fail.",
-        effect: (s) => {
-          s.economy -= 0.10;
-          s.trust += 0.02;
-        }
-      }
-    ]
-  },
-  10: {
-    text: "DAY 10: DISINFORMATION\nFake cures are killing people.",
-    choices: [
-      {
-        text: "Aggressive censorship.",
-        effect: (s) => {
-          s.trust -= 0.05;
-          s.infection -= 0.02;
-        }
-      },
-      {
-        text: "Public education campaign (Slow).",
-        effect: (s) => {
-          s.population -= 0.01;
-          s.trust += 0.02;
-        }
-      }
-    ]
-  },
-  11: {
-    text: "DAY 11: A NEW SYMPTOM\nThe virus is causing blindness in rare cases.",
-    choices: [
-      {
-        text: "Hide the data to prevent panic.",
-        effect: (s) => {
-          s.trust += 0.02;
-          s.infection += 0.05; // Less caution taken
-        }
-      },
-      {
-        text: "Announce it.",
-        effect: (s) => {
-          s.trust -= 0.05;
-          s.economy -= 0.03;
-        }
-      }
-    ]
-  },
-  12: {
-    text: "DAY 12: POLICE STRIKE\nOfficers are refusing to work without Hazmat gear.",
-    choices: [
-      {
-        text: "Divert medical supplies to police.",
-        effect: (s) => {
-          s.trust -= 0.05;
-          s.healthcare_load += 0.05; // Hospitals lose gear
-          s.economy += 0.02; // Order restored
-        }
-      },
-      {
-        text: "Deploy the Army instead.",
-        effect: (s) => {
-          s.flags.militarized = true;
-          s.trust -= 0.10;
-        }
-      }
-    ]
-  },
-  13: {
-    text: "DAY 13: THE ELITE\nBillionaires are fleeing to private islands.",
-    choices: [
-      {
-        text: "Tax their exit (Seize assets).",
-        effect: (s) => {
-          s.economy += 0.10;
-          s.trust += 0.05;
-        }
-      },
-      {
-        text: "Let them go.",
-        effect: (s) => {
-          s.economy -= 0.05;
-          s.trust -= 0.05;
-        }
-      }
-    ]
-  },
-  14: {
-    text: "DAY 14: VACCINE TRIALS\nWe can rush testing.",
-    choices: [
-      {
-        text: "Test on prisoners (Unethical).",
-        effect: (s) => {
-          s.flags.cure_progress += 50;
-          s.trust -= 0.15;
-        }
-      },
-      {
-        text: "Follow safety protocols.",
-        effect: (s) => {
-          s.population -= 0.02; // Delay costs lives
-          s.trust += 0.02;
-        }
-      }
-    ]
-  },
-  15: {
-    text: "DAY 15: OVERFLOW\nMorgues are full.",
-    choices: [
-      {
-        text: "Mass Burials (Parks).",
-        effect: (s) => {
-          s.trust -= 0.05;
-          s.infection += 0.02;
-        }
-      },
-      {
-        text: "Incineration (Pollution).",
-        effect: (s) => {
-          s.trust -= 0.10;
-          s.infection -= 0.02;
-        }
-      }
-    ]
-  },
-  16: {
-    text: "DAY 16: ECONOMIC CRASH\nHyperinflation has started.",
-    choices: [
-      {
-        text: "Freeze prices.",
-        effect: (s) => {
-          s.economy += 0.05;
-          s.trust -= 0.05; // Black markets form
-        }
-      },
-      {
-        text: "Switch to digital rationing.",
-        effect: (s) => {
-          s.economy -= 0.02;
-          s.trust -= 0.02;
-        }
-      }
-    ]
-  },
-  17: {
-    text: "DAY 17: REGIONAL SACRIFICE\nThe North is 80% infected.",
-    choices: [
-      {
-        text: "Seal the North (Extreme Choice).",
-        effect: (s) => {
-          s.population -= 0.15; // Drastic Hit
-          s.infection -= 0.30; // Drastic Reward
-          s.trust -= 0.20;
-          s.flags.lockdown = true;
-        }
-      },
-      {
-        text: "Send aid.",
-        effect: (s) => {
-          s.infection += 0.05;
-          s.healthcare_load += 0.10;
-        }
-      }
-    ]
-  },
-  18: {
-    text: "DAY 18: FOREIGN INTERVENTION\nA superpower offers aid for sovereignty.",
-    choices: [
-      {
-        text: "Accept Aid.",
-        effect: (s) => {
-          s.healthcare_load -= 0.20;
-          s.trust -= 0.10;
-        }
-      },
-      {
-        text: "Reject.",
-        effect: (s) => {
-          s.population -= 0.02;
-        }
-      }
-    ]
-  },
-  19: {
-    text: "DAY 19: THE CURE?\nWe need more test subjects.",
-    choices: [
-      {
-        text: "Mandatory Testing.",
-        effect: (s) => {
-          s.flags.cure_progress += 30;
-          s.trust -= 0.10;
-        }
-      },
-      {
-        text: "Volunteer only.",
-        effect: (s) => {
-          s.flags.cure_progress += 10;
-        }
-      }
-    ]
-  },
-  20: {
-    text: "DAY 20: BLACKOUT\nThe grid is failing.",
-    choices: [
-      {
-        text: "Power to Hospitals only.",
-        effect: (s) => {
-          s.healthcare_load -= 0.05;
-          s.economy -= 0.10;
-        }
-      },
-      {
-        text: "Rolling Blackouts.",
-        effect: (s) => {
-          s.healthcare_load += 0.05;
-          s.economy -= 0.02;
-        }
-      }
-    ]
-  },
-  21: {
-    text: "DAY 21: THE ARK\nA bunker for the leadership.",
-    choices: [
-      {
-        text: "Secure the bunker.",
-        effect: (s) => {
-          s.trust -= 0.15;
-          s.economy += 0.02;
-        }
-      },
-      {
-        text: "Turn bunker into hospital.",
-        effect: (s) => {
-          s.trust += 0.10;
-          s.healthcare_load -= 0.05;
-        }
-      }
-    ]
-  },
-  22: {
-    text: "DAY 22: DATA LOSS\nWe are flying blind.",
-    choices: [
-      {
-        text: "Estimate data.",
-        effect: (s) => {
-          s.trust -= 0.02;
-        }
-      },
-      {
-        text: "Lift restrictions.",
-        effect: (s) => {
-          s.infection += 0.15;
-          s.economy += 0.05;
-        }
-      }
-    ]
-  },
-  23: {
-    text: "DAY 23: STERILIZATION\nA gas can kill the virus but causes sterility.",
-    choices: [
-      {
-        text: "Release the gas (Extreme).",
-        effect: (s) => {
-          s.infection = 0.05; // Cured
-          s.flags.sterility = true;
-          s.trust -= 0.30;
-        }
-      },
-      {
-        text: "Refuse.",
-        effect: (s) => {
-          s.population -= 0.05;
-        }
-      }
-    ]
-  },
-  24: {
-    text: "DAY 24: COLLAPSE\nGovernment is dissolving.",
-    choices: [
-      {
-        text: "Martial Law.",
-        effect: (s) => {
-          s.trust = 0.15;
-          s.economy += 0.05;
-        }
-      },
-      {
-        text: "Form Community Councils.",
-        effect: (s) => {
-          s.trust += 0.10;
-          s.economy -= 0.10;
-        }
-      }
-    ]
-  },
-  25: {
-    text: "DAY 25: ZERO HOUR\nIt is over.",
-    choices: [
-      {
-        text: "Assess the damage.",
-        effect: (s) => {
-          normalizeState();
-        }
-      }
-    ]
+    ];
+    const evt = events[Math.floor(Math.random() * events.length)];
+    triggerInterruption(evt.title, evt.text, evt.choices);
   }
-};
+}
 
 // ==========================================
 // 6. ENDING CONDITIONS
 // ==========================================
 
 function checkEnding() {
-  if (state.day < 16) return null;
-
-  // 1. EXTINCTION (Population < 15%)
-  if (state.population < 0.15) {
-    return "ENDING: HUMAN EXTINCTION.\nThe virus has won. Silence falls over the cities.";
-  }
-
-  // 2. SOCIETAL COLLAPSE (Economy < 20%)
-  if (state.economy < 0.20) {
-    return "ENDING: COUNTRY COLLAPSE.\nThe nation has dissolved. Starvation claims those the virus missed.";
-  }
-
-  // 3. GENERATIONAL TRAUMA (Trust < 20%)
-  if (state.trust < 0.20) {
-    return "ENDING: REVOLUTION.\nThe government has fallen. The survivors will never trust authority again.";
-  }
-
-  // 4. BIOLOGICAL CASCADE (Healthcare 100% & Infection > 50%)
-  if (state.healthcare_load >= 1.0 && state.infection > 0.50) {
-    return "ENDING: TOTAL FAILURE.\nHospitals became death traps. The system has broken.";
-  }
-
-  // 5. CONTROLLED ERADICATION (Win State)
-  if (
-    state.population > 0.40 &&
-    state.economy > 0.30 &&
-    state.trust > 0.50 &&
-    state.infection < 0.10
-  ) {
-    return "ENDING: CONTROLLED ERADICATION.\nWe have survived. The cost was high, but humanity endures.";
-  }
-
-  // 6. HARD STOP (Day 26)
+  // Survival Mode Check
   if (state.day > 25) {
-    return "ENDING: UNCERTAIN FUTURE.\nThe worst is over, but the world is forever changed.";
+    if (state.population < 0.10) return "SURVIVAL MODE ENDED: EXTINCTION.";
+    if (state.economy < 0.05) return "SURVIVAL MODE ENDED: TOTAL COLLAPSE.";
+    return null; // Keep going
   }
 
+  if (state.population < 0.15) return "ENDING: EXTINCTION.\nThe virus won.";
+  if (state.economy < 0.20) return "ENDING: COLLAPSE.\nNation dissolved into anarchy.";
+  if (state.trust < 0.15) return "ENDING: REVOLUTION.\nYou were dragged from the office.";
+  if (state.healthcare_load >= 1.0 && state.infection > 0.50) return "ENDING: SYSTEM FAILURE.";
+  
   return null;
 }
 
 // ==========================================
-// 7. MAIN GAME LOOP API
+// 7. MAIN API
 // ==========================================
 
 function getStatusReport() {
-  // Ensure values are safe before printing
-  normalizeState(); 
+  normalizeState();
+  let loyaltyStr = `\nADVISORS: [KAEL: ${state.advisors.kael.toFixed(0)}%] [ARIS: ${state.advisors.aris.toFixed(0)}%]`;
+  let modeStr = state.day > 25 ? " [SURVIVAL MODE]" : "";
   
   return `
-STATUS REPORT - DAY ${state.day}
+STATUS REPORT - DAY ${state.day}${modeStr}
 ----------------------------
 POPULATION: ${(state.population * 100).toFixed(1)}%
 ECONOMY:    ${(state.economy * 100).toFixed(1)}%
 TRUST:      ${(state.trust * 100).toFixed(1)}%
 INFECTION:  ${(state.infection * 100).toFixed(1)}%
-HOSPITALS:  ${(state.healthcare_load * 100).toFixed(1)}% Load
+HOSPITALS:  ${(state.healthcare_load * 100).toFixed(1)}% Load${loyaltyStr}
 ----------------------------
 `;
 }
@@ -719,109 +413,110 @@ HOSPITALS:  ${(state.healthcare_load * 100).toFixed(1)}% Load
 function advanceDay(choiceIndex = null) {
   let output = [];
 
-  // --- INPUT VALIDATION ---
+  // 1. HANDLE INPUT
   if (choiceIndex !== null) {
-    // Check interruption vs normal
-    let currentChoices = state.activeInterruption ? state.activeInterruption.choices : (scenarios[state.day] ? scenarios[state.day].choices : []);
-    
-    if (!currentChoices[choiceIndex]) {
-      // Re-display current text context
-      let text = state.activeInterruption ? state.activeInterruption.text : scenarios[state.day].text;
+    let currentChoices = [];
+    if (state.activeInterruption) {
+      currentChoices = state.activeInterruption.choices;
+    } else {
+      // Re-fetch the scenario logic to get the choices array
+      // Note: This relies on the state NOT changing between display and input
+      // Ideally we'd store the 'currentScenario' in state, but for this simple engine we re-fetch
+      // CAUTION: Since getDailyContent() is state-dependent, we must ensure state hasn't shifted.
+      // We will assume the UI passes index based on what was displayed.
+      // We need to fetch the scenario *before* we simulate/advance.
       
+      // To fix "re-fetching" issues with procedural gen, we should have stored it.
+      // But for simplicity, we assume the user just saw the output of the PREVIOUS call.
+      // Actually, we need to know what choices were offered. 
+      // This architecture is slightly stateless. 
+      // FIX: We will re-generate the logic of "what happens on this day" 
+      // BUT, since procedural generation is random, we might get different choices!
+      // CRITICAL FIX: We need to store 'currentScenario' in state.
+    }
+
+    // Since we didn't store it, we have to trust the flow. 
+    // Ideally, the previous 'advanceDay' call set up the choices.
+    // Let's assume we are executing the choice for the PREVIOUSLY displayed scenario.
+    // We need to fetch the scenario object again.
+    
+    // To make this robust without rewriting the UI:
+    // We will fetch `getDailyContent()` NOW to apply effect, THEN advance.
+    // However, if it's random endless mode, calling it again gives new random choices.
+    // We must store the current choices in state.
+  }
+  
+  // FIX: Storing choices
+  if (!state.currentScenario) {
+    state.currentScenario = getDailyContent();
+  }
+
+  // VALIDATION & EXECUTION
+  if (choiceIndex !== null) {
+    let choices = state.activeInterruption ? state.activeInterruption.choices : state.currentScenario.choices;
+    
+    if (!choices[choiceIndex]) {
       return {
-        text: ">> SYSTEM ALERT: This is not the time to fool around, agent. You hold a lot more power than you see. Focus.\n\n" + text + "\n\n" + currentChoices.map((c, i) => `[${i+1}] ${c.text}`).join('\n'),
-        choices: currentChoices.length,
+        text: ">> SYSTEM ALERT: Invalid Input. Focus.\n\n" + (state.activeInterruption ? state.activeInterruption.text : state.currentScenario.text),
+        choices: choices.length,
         ended: false,
         critical: state.flags.criticalMode
       };
     }
-  }
 
-  // --- APPLY CHOICE ---
-  if (choiceIndex !== null) {
+    // Apply Effect
+    output.push(`>> ACTION: ${choices[choiceIndex].text}`);
+    choices[choiceIndex].effect(state);
+    
+    // Clear Interruption or Advance Day
     if (state.activeInterruption) {
-      output.push(`>> ACTION: ${state.activeInterruption.choices[choiceIndex].text}`);
-      state.activeInterruption.choices[choiceIndex].effect(state);
       state.activeInterruption = null;
-      normalizeState(); // Fix values immediately
+      // Don't advance day on interruption resolution
     } else {
-      const scenario = scenarios[state.day];
-      output.push(`>> ACTION: ${scenario.choices[choiceIndex].text}`);
-      scenario.choices[choiceIndex].effect(state);
-      normalizeState(); // Fix values immediately
-      
       runDailySimulation();
       state.day++;
+      // Generate NEW scenario for the NEXT day
+      state.currentScenario = getDailyContent(); 
     }
+  } else {
+    // Initial Load
+    state.currentScenario = getDailyContent();
   }
 
-  // --- RED TEXT LOGIC (70% / 75%) ---
-  if (state.population < 0.70) {
-    state.flags.criticalMode = true;
-  } else if (state.population >= 0.75) {
-    state.flags.criticalMode = false;
-  }
+  // RED TEXT
+  if (state.population < 0.70) state.flags.criticalMode = true;
+  else if (state.population >= 0.75) state.flags.criticalMode = false;
 
-  // --- CHECK ENDING ---
+  // CHECK ENDING
   const ending = checkEnding();
   if (ending) {
     output.push(getStatusReport());
     output.push("\n================================");
     output.push(ending);
     output.push("================================");
-    return {
-      text: output.join("\n"),
-      choices: 0,
-      ended: true,
-      critical: state.flags.criticalMode
-    };
+    return { text: output.join("\n"), choices: 0, ended: true, critical: state.flags.criticalMode };
   }
 
-  // --- CHECK FOR INTERRUPTION ---
+  // RANDOM INTERRUPTION? (Only if not already interrupted)
   if (!state.activeInterruption) {
-    const suddenEvent = triggerRandomEvent();
-    if (suddenEvent) {
-      state.activeInterruption = suddenEvent;
-      output.push(getStatusReport());
-      output.push("\n*** INTERRUPTION ***");
-      output.push(suddenEvent.text);
-      output.push("");
-      suddenEvent.choices.forEach((c, i) => {
-        output.push(`[${i + 1}] ${c.text}`);
-      });
-
-      return {
-        text: output.join("\n"),
-        choices: suddenEvent.choices.length,
-        ended: false,
-        critical: state.flags.criticalMode
-      };
-    }
+    checkRandomInterruption();
   }
 
-  // --- NORMAL DAY ---
+  // PREPARE OUTPUT
   output.push(getStatusReport());
-  const nextScenario = scenarios[state.day];
+  
+  let scenarioDisplay = state.activeInterruption ? state.activeInterruption : state.currentScenario;
+  
+  output.push(scenarioDisplay.text);
+  output.push("");
+  scenarioDisplay.choices.forEach((c, i) => {
+    output.push(`[${i + 1}] ${c.text}`);
+  });
 
-  if (nextScenario) {
-    output.push(nextScenario.text);
-    output.push("");
-    nextScenario.choices.forEach((c, i) => {
-      output.push(`[${i + 1}] ${c.text}`);
-    });
-    
-    return {
-      text: output.join("\n"),
-      choices: nextScenario.choices.length,
-      ended: false,
-      critical: state.flags.criticalMode
-    };
-  } else {
-    return {
-      text: "Signal lost...",
-      choices: 0,
-      ended: true,
-      critical: state.flags.criticalMode
-    };
-  }
+  return {
+    text: output.join("\n"),
+    choices: scenarioDisplay.choices.length,
+    ended: false,
+    critical: state.flags.criticalMode
+  };
 }
