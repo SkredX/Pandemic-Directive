@@ -1,10 +1,13 @@
+/* =========================================
+   GLOBAL VARIABLES & THEME
+   ========================================= */
 :root {
-  --bg-body: #050505;
-  --bg-terminal: #0a0a0a;
-  --text-main: #6ee7b7; /* Cyan/Green */
-  --text-muted: #4b5563;
-  --text-alert: #ef4444; /* Red for Critical/News */
-  --accent: #10b981;
+  --bg-body: #050505;           
+  --bg-terminal: #0a0a0a;       
+  --text-main: #6ee7b7;         /* Retro Phosphor Green/Cyan */
+  --text-muted: #4b5563;        
+  --text-alert: #ef4444;        /* Red for Critical/News */
+  --accent: #10b981;            /* Bright Green */
   --font-stack: "Courier New", Courier, monospace;
 }
 
@@ -17,73 +20,78 @@ body {
   color: var(--text-main);
   font-family: var(--font-stack);
   height: 100vh;
-  overflow: hidden;
-}
-
-/* MAIN GRID LAYOUT */
-.main-layout {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr; /* News | Terminal | Empty(Balance) */
-  height: 100vh;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  gap: 20px;
-  padding: 20px;
-}
-
-/* NEWS FEED (Left Panel) */
-#news-feed-container {
-  border-right: 1px solid var(--text-muted);
-  padding-right: 20px;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  overflow-y: hidden; /* We handle scroll via max items */
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; 
 }
 
-.news-header {
-  color: var(--text-alert);
+/* =========================================
+   LOADING SCREEN & INTRO
+   ========================================= */
+#loading-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: #000;
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+#intro-text-container {
+  font-family: var(--font-stack);
+  white-space: pre-wrap;
+  text-align: left;
+  max-width: 600px;
+  min-height: 150px; 
+  margin-bottom: 20px;
+  line-height: 1.6;
+  color: #d1d5db;
+}
+
+.highlight-text {
+  color: var(--accent);
   font-weight: bold;
-  border-bottom: 2px solid var(--text-alert);
-  margin-bottom: 15px;
-  padding-bottom: 5px;
-  letter-spacing: 2px;
-  animation: blink 2s infinite;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
-.news-item {
-  background: rgba(20, 0, 0, 0.5);
-  border-left: 3px solid var(--text-alert);
-  padding: 10px;
-  margin-bottom: 15px;
-  font-size: 0.9rem;
-  color: #fca5a5;
-  opacity: 0; /* For fade in */
-  animation: slideIn 0.5s forwards;
+.typing-cursor::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  margin-left: 2px;
+  color: var(--accent);
 }
 
-/* TERMINAL (Center) */
-.terminal-wrapper {
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* =========================================
+   MAIN GAME UI (Centered Container)
+   ========================================= */
+.container {
+  width: 100%;
+  max-width: 900px;
+  height: 95vh;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  padding: 20px;
+  /* Transition for the Red Text effect */
+  transition: all 0.8s ease-in-out; 
 }
 
 .terminal {
-  flex: 1;
+  flex: 1; 
   background-color: var(--bg-terminal);
   border: 1px solid var(--text-muted);
   border-radius: 8px;
   padding: 20px;
-  white-space: pre-wrap;
-  overflow-y: auto;
-  font-size: 1rem;
+  white-space: pre-wrap; 
   line-height: 1.5;
+  font-size: 1rem;
+  overflow-y: auto; 
   box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
 }
 
-/* INPUT AREA */
 .input-row {
   margin-top: 15px;
   display: flex;
@@ -92,7 +100,7 @@ body {
 }
 
 input {
-  flex: 1;
+  flex: 1; 
   background: transparent;
   border: 1px solid var(--text-muted);
   color: var(--text-main);
@@ -105,50 +113,87 @@ input {
 }
 
 input:focus { border-color: var(--accent); }
-
 button {
   background-color: var(--accent);
-  color: #000;
+  color: #000; 
   border: none;
   font-weight: bold;
   padding: 0 25px;
   cursor: pointer;
   text-transform: uppercase;
 }
-
 button:disabled { background-color: var(--text-muted); cursor: not-allowed; }
 
+footer {
+  margin-top: 15px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
 /* CRITICAL STATE OVERRIDES */
-body.critical {
+.container.critical {
   --text-main: #ef4444;
   --accent: #b91c1c;
 }
-
-body.critical .terminal {
+.container.critical .terminal {
   border-color: #b91c1c;
   box-shadow: 0 0 20px rgba(185, 28, 28, 0.3);
 }
 
-/* ANIMATIONS */
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-@keyframes slideIn { 0% { transform: translateX(-20px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+/* =========================================
+   NEWS MODAL POP-UP
+   ========================================= */
+#news-modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 10000; /* Above everything */
+  display: none; /* Hidden by default */
+  align-items: center; justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.news-box {
+  background-color: #1a0505;
+  border: 2px solid var(--text-alert);
+  padding: 30px;
+  max-width: 500px;
+  text-align: center;
+  color: var(--text-alert);
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+}
+
+.news-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  letter-spacing: 2px;
+  animation: blink 2s infinite;
+}
+
+.news-content {
+  font-size: 1.1rem;
+  margin-bottom: 30px;
+  line-height: 1.4;
+}
+
+#news-ok-btn {
+  background-color: var(--text-alert);
+  color: #000;
+  border: none;
+  padding: 10px 30px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: inherit;
+}
+#news-ok-btn:hover { background-color: #fca5a5; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* SCROLLBARS */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #000; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-
-/* RESPONSIVE */
-@media (max-width: 900px) {
-  .main-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-  #news-feed-container {
-    height: 150px; /* Limit height on mobile */
-    border-right: none;
-    border-bottom: 1px solid var(--text-muted);
-    margin-bottom: 20px;
-    overflow-y: auto;
-  }
-}
