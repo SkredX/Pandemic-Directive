@@ -1,6 +1,6 @@
 /**
  * PANDEMIC DIRECTIVE: ZERO HOUR
- * CORE LOGIC - ROBUST & DIVERSE
+ * CORE LOGIC - ROBUST & BALANCED
  */
 
 // ==========================================
@@ -109,7 +109,6 @@ function runDailySimulation() {
 // ==========================================
 // 4. NEWS HEADLINE SYSTEM
 // ==========================================
-// Triggers based on state, max 1 per turn, never repeats.
 
 const newsPool = [
   { id: 'n1', text: "BREAKING: WHO Declares Global Pandemic Level 6", condition: s => s.day === 2 },
@@ -138,11 +137,14 @@ const newsPool = [
 ];
 
 function checkNews() {
+  // PROBABILITY CHECK: 75% chance to skip news even if valid
+  // This makes news much less frequent.
+  if (Math.random() < 0.75) return null;
+
   // Find valid news that hasn't been shown
   const candidates = newsPool.filter(n => !state.usedNews.includes(n.id) && n.condition(state));
   
   if (candidates.length > 0) {
-    // Pick one randomly
     const news = candidates[Math.floor(Math.random() * candidates.length)];
     state.usedNews.push(news.id);
     return news.text;
@@ -151,16 +153,16 @@ function checkNews() {
 }
 
 // ==========================================
-// 5. EVENT POOL (35+ Unique Events)
+// 5. EVENT POOL
 // ==========================================
 
 const eventPool = [
   { id: 'e1', text: "SITUATION: OXYGEN LEAK\nA main oxygen tank at Central Hospital has ruptured.", choices: [{ text: "Divert industrial oxygen (Hurt Eco).", effect: s => { s.economy -= 0.05; s.healthcare_load -= 0.05; } }, { text: "Ration oxygen (Deaths).", effect: s => { s.population -= 0.01; s.trust -= 0.05; } }] },
-  { id: 'e2', text: "SITUATION: PRISON OUTBREAK\nInfection spreading in maximum security.", choices: [{ text: "Release non-violent offenders.", effect: s => { s.trust -= 0.10; s.infection += 0.02; } }, { text: "Lock them in.", effect: s => { s.trust -= 0.05; /* ethical hit */ } }] },
+  { id: 'e2', text: "SITUATION: PRISON OUTBREAK\nInfection spreading in maximum security.", choices: [{ text: "Release non-violent offenders.", effect: s => { s.trust -= 0.10; s.infection += 0.02; } }, { text: "Lock them in.", effect: s => { s.trust -= 0.05; } }] },
   { id: 'e3', text: "SITUATION: TRANSPORT STRIKE\nTruckers refuse to drive into infected zones.", choices: [{ text: "Triple hazard pay.", effect: s => { s.economy -= 0.08; s.trust += 0.02; } }, { text: "Military drivers.", effect: s => { s.flags.militarized = true; s.trust -= 0.05; } }] },
-  { id: 'e4', text: "SITUATION: CELEBRITY INFLUENCER\nA pop star is telling fans the virus is a hoax.", choices: [{ text: "Publicly arrest them.", effect: s => { s.trust += 0.05; s.trust -= 0.10; /* polarized */ } }, { text: "Ignore it.", effect: s => { s.infection += 0.05; } }] },
+  { id: 'e4', text: "SITUATION: CELEBRITY INFLUENCER\nA pop star is telling fans the virus is a hoax.", choices: [{ text: "Publicly arrest them.", effect: s => { s.trust += 0.05; s.trust -= 0.10; } }, { text: "Ignore it.", effect: s => { s.infection += 0.05; } }] },
   { id: 'e5', text: "SITUATION: BLACK MARKET\nGangs are selling stolen medicine.", choices: [{ text: "Raids (Violent).", effect: s => { s.trust -= 0.05; s.economy += 0.02; } }, { text: "Buy it back.", effect: s => { s.economy -= 0.10; s.healthcare_load -= 0.05; } }] },
-  { id: 'e6', text: "SITUATION: FOREIGN SPIES\nAgents caught trying to steal vaccine data.", choices: [{ text: "Execute them.", effect: s => { s.trust += 0.05; s.economy -= 0.05; /* sanctions */ } }, { text: "Trade for supplies.", effect: s => { s.healthcare_load -= 0.10; s.trust -= 0.10; } }] },
+  { id: 'e6', text: "SITUATION: FOREIGN SPIES\nAgents caught trying to steal vaccine data.", choices: [{ text: "Execute them.", effect: s => { s.trust += 0.05; s.economy -= 0.05; } }, { text: "Trade for supplies.", effect: s => { s.healthcare_load -= 0.10; s.trust -= 0.10; } }] },
   { id: 'e7', text: "SITUATION: BANK RUN\nPeople draining ATMs.", choices: [{ text: "Freeze withdrawals.", effect: s => { s.trust -= 0.15; s.economy += 0.05; } }, { text: "Print money.", effect: s => { s.economy -= 0.15; } }] },
   { id: 'e8', text: "SITUATION: TEACHERS UNION\nThey refuse to open schools.", choices: [{ text: "Close schools.", effect: s => { s.economy -= 0.05; s.infection -= 0.03; } }, { text: "Fire them.", effect: s => { s.trust -= 0.10; s.infection += 0.05; } }] },
   { id: 'e9', text: "SITUATION: BORDER REFUGEES\nThousands fleeing neighbor state.", choices: [{ text: "Let them in.", effect: s => { s.infection += 0.10; s.trust += 0.05; } }, { text: "Turn them back.", effect: s => { s.trust -= 0.05; } }] },
