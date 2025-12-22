@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>Pandemic Directive: Zero Hour</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3KNYNHZWV1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -14,58 +14,23 @@
   </script>
 
   <link rel="stylesheet" href="styles.css" />
-  <style>
-    /* Add a cursor effect for the typing animation */
-    .typing-cursor::after {
-      content: '█';
-      animation: blink 1s step-end infinite;
-      margin-left: 2px;
-      color: var(--accent);
-    }
-    
-    /* Intro text specific styling */
-    #intro-text-container {
-      font-family: "Courier New", Courier, monospace;
-      white-space: pre-wrap;
-      text-align: left;
-      max-width: 600px;
-      min-height: 150px; 
-      margin-bottom: 20px;
-      line-height: 1.6;
-      color: #d1d5db;
-    }
-    
-    /* Highlight styling */
-    .highlight-text {
-      color: var(--accent);
-      font-weight: bold;
-      text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-    }
-  </style>
 </head>
-
 <body>
-  <audio id="bgm" loop>
-    <source src="bgm.mp3" type="audio/mpeg">
-  </audio>
-  
-  <audio id="sfx-typewriter" loop>
-    <source src="typewriter.mp3" type="audio/mpeg">
-  </audio>
+
+  <audio id="bgm" loop><source src="bgm.mp3" type="audio/mpeg"></audio>
+  <audio id="sfx-typewriter" loop><source src="typewriter.mp3" type="audio/mpeg"></audio>
+  <audio id="sfx-radio"><source src="radio.m4a" type="audio/mpeg"></audio>
 
   <div id="loading-overlay">
-    
-    <div id="loading-phase">
-      <div class="loading-text">ESTABLISHING SECURE CONNECTION...</div>
-      <div class="progress-container">
-        <div class="progress-bar" id="progress-bar"></div>
-      </div>
-    </div>
+    <div id="intro-text-container"></div>
+    <button id="enter-btn" style="opacity: 0; pointer-events: none; transition: opacity 1s;">INITIALIZE PROTOCOLS</button>
+  </div>
 
-    <div id="intro-phase" style="display: none; opacity: 0;">
-      <div id="intro-text-container"></div>
-      
-      <button id="enter-btn" style="opacity: 0; pointer-events: none; transition: opacity 1s;">INITIALIZE PROTOCOLS</button>
+  <div id="news-modal-overlay">
+    <div class="news-box">
+      <div class="news-title">WORLD NEWS WIRE</div>
+      <div id="news-content" class="news-content"></div>
+      <button id="news-ok-btn">ACKNOWLEDGE</button>
     </div>
   </div>
 
@@ -73,15 +38,9 @@
     <div id="terminal" class="terminal"></div>
 
     <div class="input-row">
-      <input
-        id="choiceInput"
-        type="number"
-        placeholder=">> COMMAND"
-        min="1"
-        disabled
-      />
+      <input id="choiceInput" type="number" placeholder=">> COMMAND" min="1" disabled />
       <button id="submitBtn" disabled>EXECUTE</button>
-      <button id="restartBtn" style="display:none;">SYSTEM REBOOT</button>
+      <button id="restartBtn" style="display:none;">REBOOT</button>
     </div>
 
     <footer>
@@ -93,231 +52,178 @@
 
   <script>
     // --- AUDIO CONTROLLER ---
-    const audioCtrl = {
+    const audio = {
       bgm: document.getElementById('bgm'),
-      sfx: document.getElementById('sfx-typewriter'),
-      
-      startMusic: function() {
-        this.bgm.volume = 0.4; 
-        this.bgm.play().catch(e => console.log("BGM waiting for interaction"));
+      type: document.getElementById('sfx-typewriter'),
+      radio: document.getElementById('sfx-radio'),
+      startBgm: () => { 
+        audio.bgm.volume = 0.6; 
+        audio.bgm.play().catch(e => console.log("Audio waiting for interaction")); 
       },
-
-      startTypingSound: function() {
-        this.sfx.currentTime = 0;
-        this.sfx.volume = 0.35; 
-        this.sfx.play().catch(e => {}); 
+      playType: () => { 
+        audio.type.currentTime = 0; 
+        audio.type.play().catch(e => {}); 
       },
-
-      stopTypingSound: function() {
-        this.sfx.pause();
-        this.sfx.currentTime = 0;
+      stopType: () => { 
+        audio.type.pause(); 
       },
-
-      stopMusic: function() {
-        let vol = this.bgm.volume;
-        const fade = setInterval(() => {
-          if (vol > 0.05) {
-            vol -= 0.05;
-            this.bgm.volume = vol;
-          } else {
-            clearInterval(fade);
-            this.bgm.pause();
-          }
-        }, 200);
+      playRadio: () => { 
+        audio.radio.currentTime = 0; 
+        audio.radio.volume = 1.0; 
+        audio.radio.play().catch(e => {}); 
       }
     };
 
-    // --- TYPEWRITER ENGINE ---
-    function typeText(element, text, speed = 25, callback = null) {
+    // --- TYPEWRITER EFFECT ---
+    function typeText(el, text, speed = 10, cb = null) {
       let i = 0;
+      audio.playType();
+      el.classList.add("typing-cursor");
       
-      // Start Sound
-      audioCtrl.startTypingSound();
-      
-      // Add cursor
-      element.classList.add("typing-cursor");
-
-      function type() {
+      function tick() {
         if (i < text.length) {
-          // Handle newlines
-          if (text.charAt(i) === "\n") {
-            element.appendChild(document.createElement("br"));
+          if (text.charAt(i) === '\n') {
+            el.appendChild(document.createElement('br'));
           } else {
-            element.appendChild(document.createTextNode(text.charAt(i)));
+            el.appendChild(document.createTextNode(text.charAt(i)));
           }
-          
-          // --- AUTOSCROLL FIX ---
-          // Always target the main terminal container for scrolling
-          const term = document.getElementById("terminal");
-          term.scrollTop = term.scrollHeight;
+          // Auto-scroll terminal
+          const t = document.getElementById('terminal');
+          if (t) t.scrollTop = t.scrollHeight;
           
           i++;
-          setTimeout(type, speed);
+          setTimeout(tick, speed);
         } else {
-          // Finished
-          audioCtrl.stopTypingSound();
-          element.classList.remove("typing-cursor");
-          if (callback) callback();
+          audio.stopType();
+          el.classList.remove("typing-cursor");
+          if (cb) cb();
         }
       }
-      
-      type();
+      tick();
     }
+
+    // --- NEWS MODAL SYSTEM ---
+    const newsOverlay = document.getElementById('news-modal-overlay');
+    const newsContent = document.getElementById('news-content');
+    const newsOkBtn = document.getElementById('news-ok-btn');
+    let pendingGameData = null; 
+
+    function showNews(text, gameData) {
+      pendingGameData = gameData; 
+      newsContent.textContent = text;
+      newsOverlay.style.display = 'flex';
+      audio.playRadio();
+    }
+
+    newsOkBtn.addEventListener('click', () => {
+      newsOverlay.style.display = 'none';
+      if(pendingGameData) {
+        displayTurn(pendingGameData);
+        pendingGameData = null;
+      }
+    });
 
     // --- INTRO SEQUENCE ---
     const introText = "Welcome to the command group.\n\nOur nation has just noted a novel infection.\n\nYou are recruited to guide the decision makers towards the right step.\n\nStay prepared to lead from the shadows.";
+    const introContainer = document.getElementById('intro-text-container');
+    const enterBtn = document.getElementById('enter-btn');
+    const loadingOverlay = document.getElementById('loading-overlay');
 
     window.addEventListener('load', () => {
-      const bar = document.getElementById('progress-bar');
-      const loadingPhase = document.getElementById('loading-phase');
-      const introPhase = document.getElementById('intro-phase');
-      const introContainer = document.getElementById('intro-text-container');
-      const overlay = document.getElementById('loading-overlay');
-      const enterBtn = document.getElementById('enter-btn');
-
-      // 1. Loading Bar
       setTimeout(() => {
-        bar.style.width = '100%';
-      }, 100);
-
-      // 2. Switch to Intro
-      setTimeout(() => {
-        loadingPhase.style.opacity = '0';
-        
-        setTimeout(() => {
-          loadingPhase.style.display = 'none';
-          introPhase.style.display = 'flex'; 
-          introPhase.style.flexDirection = 'column';
-          introPhase.style.alignItems = 'center';
-          
-          void introPhase.offsetWidth; 
-          introPhase.style.opacity = '1';
-
-          // Type Intro Text
-          typeText(introContainer, introText, 40, () => {
-            // Apply Highlight styling manually to the last sentence
-            introContainer.innerHTML = introContainer.innerHTML.replace(
-              "Stay prepared to lead from the shadows.", 
-              "<span class='highlight-text'>Stay prepared to lead from the shadows.</span>"
-            );
-            
-            // Reveal Button
-            enterBtn.style.opacity = '1';
-            enterBtn.style.pointerEvents = 'auto';
-          });
-
-        }, 500);
-      }, 2500);
-
-      // 3. Start Game
-      enterBtn.addEventListener('click', () => {
-        audioCtrl.startMusic();
-
-        if (typeof gtag === 'function') {
-          gtag('event', 'game_start', { 'event_category': 'engagement' });
-        }
-
-        overlay.style.opacity = '0';
-        setTimeout(() => {
-          overlay.style.display = 'none';
-          processTurn(); 
-        }, 800);
-      });
+        typeText(introContainer, introText, 40, () => {
+          introContainer.innerHTML = introContainer.innerHTML.replace(
+            "Stay prepared to lead from the shadows.", 
+            "<span class='highlight-text'>Stay prepared to lead from the shadows.</span>"
+          );
+          enterBtn.style.opacity = '1';
+          enterBtn.style.pointerEvents = 'auto';
+        });
+      }, 500);
     });
 
-    // --- GAME UI LOGIC ---
-    const terminal = document.getElementById("terminal");
-    const input = document.getElementById("choiceInput");
-    const submitBtn = document.getElementById("submitBtn");
-    const restartBtn = document.getElementById("restartBtn");
-    const container = document.getElementById("game-container");
-
-    let awaitingChoice = false;
-    let gameEnded = false;
-
-    function updateVisualState(isCritical) {
-      if (isCritical) {
-        container.classList.add("critical");
-      } else {
-        container.classList.remove("critical");
+    enterBtn.addEventListener('click', () => {
+      audio.startBgm();
+      
+      // Send GA Event for Start
+      if (typeof gtag === 'function') {
+        gtag('event', 'game_start', { 'event_category': 'engagement' });
       }
-    }
 
-    function start() {
-      location.reload();
-    }
+      loadingOverlay.style.transition = 'opacity 1s';
+      loadingOverlay.style.opacity = '0';
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        processTurn(); 
+      }, 1000);
+    });
+
+    // --- MAIN GAME LOOP ---
+    const term = document.getElementById('terminal');
+    const inp = document.getElementById('choiceInput');
+    const subBtn = document.getElementById('submitBtn');
+    const container = document.getElementById('game-container');
+    let waiting = false;
 
     function processTurn(choice = null) {
-      const result = advanceDay(choice);
-      updateVisualState(result.critical);
+      // Core logic call
+      const res = advanceDay(choice);
 
-      input.disabled = true;
-      submitBtn.disabled = true;
+      // Handle Visual Critical State
+      if(res.critical) container.classList.add('critical');
+      else container.classList.remove('critical');
 
-      // Create new text block
-      const newBlock = document.createElement("div");
-      newBlock.style.marginBottom = "20px"; 
-      terminal.appendChild(newBlock);
+      // Lock Inputs
+      inp.disabled = true; 
+      subBtn.disabled = true;
 
-      // Type the result
-      typeText(newBlock, result.text, 15, () => {
-        
-        // Handle Game Over
-        if (result.ended) {
-          gameEnded = true;
-          restartBtn.style.display = "inline-block";
-          audioCtrl.stopMusic();
+      // Check for News
+      if(res.news) {
+        showNews(res.news, res);
+      } else {
+        displayTurn(res);
+      }
+    }
+
+    function displayTurn(res) {
+      const block = document.createElement('div');
+      block.style.marginBottom = "20px";
+      term.appendChild(block);
+
+      typeText(block, res.text, 5, () => {
+        if(res.ended) {
+          audio.bgm.pause();
+          document.getElementById('restartBtn').style.display = 'block';
           
+          // Send GA Event for End
           if (typeof gtag === 'function') {
-              gtag('event', 'game_over', {
-                  'result': result.text.split('\n')[0] 
-              });
+            gtag('event', 'game_over', { 'result': res.text.split('\n')[0] });
           }
-          return;
-        }
-
-        // Enable Input
-        if (result.choices > 0) {
-          awaitingChoice = true;
-          input.disabled = false;
-          submitBtn.disabled = false;
-          input.focus();
         } else {
-          const noSig = document.createElement("div");
-          noSig.textContent = "Signal lost...";
-          terminal.appendChild(noSig);
+          waiting = true;
+          inp.disabled = false; 
+          subBtn.disabled = false;
+          inp.focus();
         }
       });
     }
 
-    submitBtn.addEventListener("click", () => {
-      if (!awaitingChoice || gameEnded) return;
-
-      const val = parseInt(input.value, 10);
+    // --- INPUT HANDLING ---
+    subBtn.addEventListener('click', () => {
+      if(!waiting) return;
+      const v = parseInt(inp.value);
+      if(isNaN(v)) return;
       
-      // Input Validation
-      if (isNaN(val)) {
-        const errBlock = document.createElement("div");
-        terminal.appendChild(errBlock);
-        // Using typewriter for error message consistency
-        typeText(errBlock, "\n[ERROR: INVALID PARAMETER]", 10);
-        input.value = "";
-        return;
-      }
-
-      input.value = "";
-      input.disabled = true;
-      submitBtn.disabled = true;
-      awaitingChoice = false;
-
-      processTurn(val - 1);
+      waiting = false; 
+      inp.value = "";
+      processTurn(v - 1);
     });
 
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submitBtn.click();
+    inp.addEventListener('keydown', e => { 
+      if(e.key === 'Enter') subBtn.click(); 
     });
-
-    restartBtn.addEventListener("click", start);
+    
+    document.getElementById('restartBtn').addEventListener('click', () => location.reload());
   </script>
 </body>
 </html>
