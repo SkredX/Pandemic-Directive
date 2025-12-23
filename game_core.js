@@ -1,6 +1,6 @@
 /**
  * PANDEMIC DIRECTIVE: ZERO HOUR
- * Core logic update- serious and balanced
+ * CORE LOGIC - UPDATED FOR VICTORY
  */
 
 // 1. Game state
@@ -58,12 +58,22 @@ function noise(scale=0.02) { return (Math.random() - 0.5) * scale; }
 
 function runDailySimulation() {
   let spreadRate = 0.15; 
+  
+  // Modifiers
   if (state.flags.lockdown) spreadRate -= 0.12;
   if (state.trust < 0.4) spreadRate += 0.06;
   if (state.healthcare_load > 0.9) spreadRate += 0.05; 
   
+  // Cure progress actively fights spread
+  if (state.flags.cure_progress > 0) {
+    spreadRate -= (state.flags.cure_progress / 100) * 0.5; 
+  }
+
   let growth = spreadRate * state.infection * (1 - state.infection);
   state.infection += growth + noise(0.01);
+
+  // Snap to zero if very low (allows Eradication ending)
+  if (state.infection < 0.01) state.infection = 0;
 
   let targetLoad = state.infection * 1.3;
   state.healthcare_load += (targetLoad - state.healthcare_load) * 0.25;
@@ -125,14 +135,13 @@ const newsPool = [
   { id: 'n20', text: "RESISTANCE: 'Freedom Convoy' Blockades Highways", condition: s => s.flags.lockdown },
   { id: 'n21', text: "RELIGION: Cult Suicides Reported in Rural Areas", condition: s => s.trust < 0.3 },
   { id: 'n22', text: "NATURE: Wildlife Entering Abandoned City Centers", condition: s => s.population < 0.8 },
-  { id: 'n23', text: "TECH: AI Predicts 90% Probability of Collapse", condition: s => s.economy < 0.2 }
+  { id: 'n23', text: "TECH: AI Predicts 90% Probability of Collapse", condition: s => s.economy < 0.2 },
+  { id: 'n24', text: "VICTORY: Zero New Cases Reported Today", condition: s => s.infection <= 0 }
 ];
 
 function checkNews() {
-  // PROBABILITY CHECK: 75% chance to skip news even if valid
   if (Math.random() < 0.75) return null;
 
-  // Find valid news that hasn't been shown
   const candidates = newsPool.filter(n => !state.usedNews.includes(n.id) && n.condition(state));
   
   if (candidates.length > 0) {
@@ -183,7 +192,7 @@ const eventPool = [
   { id: 'e35', text: "SITUATION: GHOST TOWNS\nSmall towns completely dead.", choices: [{ text: "Burn them.", effect: s => { s.infection -= 0.02; s.trust -= 0.05; } }, { text: "Seal them.", effect: s => { s.trust -= 0.01; } }] }
 ];
 
-// 6. Content fetching system
+// 6. Content fetching
 
 const storyArcs = {
   main: {
@@ -220,6 +229,12 @@ function triggerInterruption(title, text, choices) {
 }
 
 function checkEnding() {
+  // The good ending
+  if (state.infection <= 0 || (state.flags.cure_progress >= 100 && state.infection < 0.2)) {
+    return "ENDING: VIRUS ERADICATED\nScience and sacrifice have prevailed. The pandemic is over. Humanity breathes again.";
+  }
+
+  // The bad endings
   if (state.population < 0.15) return "ENDING: EXTINCTION\nSilence falls over the cities.";
   if (state.economy < 0.10) return "ENDING: FAILED STATE\nMoney is worthless. Warlords rule.";
   if (state.trust < 0.10) return "ENDING: REVOLUTION\nThe guillotine awaits you.";
