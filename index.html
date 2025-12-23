@@ -11,8 +11,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3KNYNHZWV1"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -43,138 +41,75 @@
   <div id="news-modal-overlay">
     <div class="news-box">
       <div class="news-header-bar">
-        <span class="news-icon blink">⚠</span> WORLD NEWS WIRE
+        <span class="news-icon">⚠</span> WORLD NEWS WIRE
       </div>
       <div id="news-content" class="news-content"></div>
       <button id="news-ok-btn">ACKNOWLEDGE</button>
     </div>
   </div>
 
-  <div class="main-layout">
-    
-    <div id="news-feed-container">
-      <div class="panel-header">STATUS FEED</div>
-      <div id="status-log" style="padding: 10px; font-size: 0.9rem; opacity: 0.8;">
-        > SYSTEM ONLINE<br>
-        > WAITING FOR INPUT...
-      </div>
+  <div id="game-container" class="container">
+    <div class="system-header">
+      <span>SYS.OP.2025</span>
+      <span class="blink">ONLINE</span>
     </div>
 
-    <div class="terminal-wrapper">
-      <div class="system-header">
-        <span>SYS.OP.2025</span>
-        <span class="blink">ONLINE</span>
-      </div>
-      <div id="terminal" class="terminal"></div>
-      <div class="input-row">
-        <input id="choiceInput" type="number" placeholder=">> AWAITING COMMAND" min="1" disabled />
-        <button id="submitBtn" disabled>EXECUTE</button>
-        <button id="restartBtn" style="display:none;">REBOOT SYSTEM</button>
-      </div>
+    <div id="terminal" class="terminal"></div>
+
+    <div class="input-row">
+      <input id="choiceInput" type="number" placeholder=">> AWAITING COMMAND" min="1" disabled />
+      <button id="submitBtn" disabled>EXECUTE</button>
+      <button id="restartBtn" style="display:none;">REBOOT SYSTEM</button>
     </div>
 
-    <div class="right-panel">
-      <div class="panel-header">INFECTION VECTOR</div>
-      <div class="chart-container">
-        <canvas id="gameChart"></canvas>
-      </div>
-      <div class="panel-stats">
-        <div id="stat-pop">POP: 100%</div>
-        <div id="stat-eco">ECO: 80%</div>
-      </div>
-    </div>
-
+    <footer>
+      <p>Decisions are final. History is watching.</p>
+    </footer>
   </div>
-
-  <div id="game-container" style="display:none;"></div> <footer>
-    <p>Decisions are final. History is watching.</p>
-  </footer>
 
   <script src="game_core.js"></script>
 
   <script>
-    // --- AUDIO ---
+    // --- AUDIO CONTROLLER ---
     const audio = {
       bgm: document.getElementById('bgm'),
       type: document.getElementById('sfx-typewriter'),
       radio: document.getElementById('sfx-radio'),
-      startBgm: () => { audio.bgm.volume = 0.5; audio.bgm.play().catch(e => {}); },
-      playType: () => { audio.type.currentTime = 0; audio.type.play().catch(e => {}); },
-      stopType: () => { audio.type.pause(); },
-      playRadio: () => { audio.radio.currentTime = 0; audio.radio.volume = 0.8; audio.radio.play().catch(e => {}); }
+      startBgm: () => { 
+        audio.bgm.volume = 0.5; 
+        audio.bgm.play().catch(e => console.log("Audio waiting")); 
+      },
+      playType: () => { 
+        audio.type.currentTime = 0; 
+        audio.type.play().catch(e => {}); 
+      },
+      stopType: () => { 
+        audio.type.pause(); 
+      },
+      playRadio: () => { 
+        audio.radio.currentTime = 0; 
+        audio.radio.volume = 0.8; 
+        audio.radio.play().catch(e => {}); 
+      }
     };
 
-    // --- CHART.JS SETUP ---
-    let mainChart;
-    const chartCtx = document.getElementById('gameChart').getContext('2d');
-    
-    function initChart() {
-      Chart.defaults.font.family = "'Share Tech Mono', monospace";
-      Chart.defaults.color = '#225f19';
-      
-      mainChart = new Chart(chartCtx, {
-        type: 'line',
-        data: {
-          labels: ['Day 0'],
-          datasets: [{
-            label: 'Infection %',
-            data: [5],
-            borderColor: '#ef4444', // Red
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            borderWidth: 2,
-            tension: 0.4,
-            fill: true,
-            pointRadius: 0
-          }, {
-            label: 'Trust %',
-            data: [70],
-            borderColor: '#4af626', // Green
-            borderWidth: 1,
-            borderDash: [5, 5],
-            pointRadius: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          animation: false, // Turn off for "instant" CRT feel
-          plugins: { legend: { display: true, labels: { color: '#4af626' } } },
-          scales: {
-            y: { beginAtZero: true, max: 100, grid: { color: 'rgba(34, 95, 25, 0.3)' } },
-            x: { grid: { display: false } }
-          }
-        }
-      });
-    }
-
-    function updateChart(day, infection, trust) {
-      if (!mainChart) return;
-      // Keep only last 10 days to mimic a "live monitor"
-      if (mainChart.data.labels.length > 10) {
-        mainChart.data.labels.shift();
-        mainChart.data.datasets[0].data.shift();
-        mainChart.data.datasets[1].data.shift();
-      }
-      mainChart.data.labels.push('D' + day);
-      mainChart.data.datasets[0].data.push(infection * 100);
-      mainChart.data.datasets[1].data.push(trust * 100);
-      mainChart.update();
-      
-      // Update text stats below chart
-      document.getElementById('stat-pop').innerText = `POP: ${(state.population*100).toFixed(0)}%`;
-      document.getElementById('stat-eco').innerText = `ECO: ${(state.economy*100).toFixed(0)}%`;
-    }
-
-    // --- TYPEWRITER ---
+    // --- TYPEWRITER EFFECT ---
     function typeText(el, text, speed = 10, cb = null) {
       let i = 0;
       audio.playType();
       el.classList.add("typing-cursor");
+      
       function tick() {
         if (i < text.length) {
-          if (text.charAt(i) === '\n') el.appendChild(document.createElement('br'));
-          else el.appendChild(document.createTextNode(text.charAt(i)));
-          document.getElementById('terminal').scrollTop = document.getElementById('terminal').scrollHeight;
+          if (text.charAt(i) === '\n') {
+            el.appendChild(document.createElement('br'));
+          } else {
+            el.appendChild(document.createTextNode(text.charAt(i)));
+          }
+          // Auto-scroll terminal
+          const t = document.getElementById('terminal');
+          if (t) t.scrollTop = t.scrollHeight;
+          
           i++;
           setTimeout(tick, speed);
         } else {
@@ -186,7 +121,7 @@
       tick();
     }
 
-    // --- NEWS MODAL ---
+    // --- NEWS MODAL SYSTEM ---
     const newsOverlay = document.getElementById('news-modal-overlay');
     const newsContent = document.getElementById('news-content');
     const newsOkBtn = document.getElementById('news-ok-btn');
@@ -207,7 +142,7 @@
       }
     });
 
-    // --- INTRO ---
+    // --- INTRO SEQUENCE ---
     const introText = "Welcome to the command group.\n\nOur nation has just noted a novel infection.\n\nYou are recruited to guide the decision makers towards the right step.\n\nStay prepared to lead from the shadows.";
     const introContainer = document.getElementById('intro-text-container');
     const enterBtn = document.getElementById('enter-btn');
@@ -216,46 +151,50 @@
     window.addEventListener('load', () => {
       setTimeout(() => {
         typeText(introContainer, introText, 30, () => {
-          introContainer.innerHTML = introContainer.innerHTML.replace("Stay prepared to lead from the shadows.", "<span class='highlight-text'>Stay prepared to lead from the shadows.</span>");
-          enterBtn.style.opacity = '1'; enterBtn.style.pointerEvents = 'auto';
+          introContainer.innerHTML = introContainer.innerHTML.replace(
+            "Stay prepared to lead from the shadows.", 
+            "<span class='highlight-text'>Stay prepared to lead from the shadows.</span>"
+          );
+          enterBtn.style.opacity = '1';
+          enterBtn.style.pointerEvents = 'auto';
         });
       }, 500);
     });
 
     enterBtn.addEventListener('click', () => {
       audio.startBgm();
-      initChart(); // START THE GRAPH
-      if (typeof gtag === 'function') gtag('event', 'game_start', { 'event_category': 'engagement' });
+      if (typeof gtag === 'function') {
+        gtag('event', 'game_start', { 'event_category': 'engagement' });
+      }
       loadingOverlay.style.transition = 'opacity 1s';
       loadingOverlay.style.opacity = '0';
-      setTimeout(() => { loadingOverlay.style.display = 'none'; processTurn(); }, 1000);
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        processTurn(); 
+      }, 1000);
     });
 
-    // --- MAIN LOOP ---
+    // --- MAIN GAME LOOP ---
     const term = document.getElementById('terminal');
     const inp = document.getElementById('choiceInput');
     const subBtn = document.getElementById('submitBtn');
-    const layout = document.body; // Using body for critical class
+    const container = document.getElementById('game-container');
     let waiting = false;
 
     function processTurn(choice = null) {
       const res = advanceDay(choice);
 
-      // Update Visuals
-      if(res.critical) layout.classList.add('critical');
-      else layout.classList.remove('critical');
+      if(res.critical) container.classList.add('critical');
+      else container.classList.remove('critical');
 
-      // UPDATE GRAPH
-      updateChart(state.day, state.infection, state.trust);
+      inp.disabled = true; 
+      subBtn.disabled = true;
 
-      // UPDATE STATUS LOG (Left Panel)
-      const log = document.getElementById('status-log');
-      log.innerHTML = `> DAY ${state.day} CYCLE START<br>> ANALYZING VECTORS...<br>> ADVISORS READY`;
-
-      inp.disabled = true; subBtn.disabled = true;
-
-      if(res.news) showNews(res.news, res);
-      else displayTurn(res);
+      if(res.news) {
+        showNews(res.news, res);
+      } else {
+        displayTurn(res);
+      }
     }
 
     function displayTurn(res) {
@@ -267,23 +206,33 @@
         if(res.ended) {
           audio.bgm.pause();
           document.getElementById('restartBtn').style.display = 'block';
-          if (typeof gtag === 'function') gtag('event', 'game_over', { 'result': res.text.split('\n')[0] });
+          if (typeof gtag === 'function') {
+            gtag('event', 'game_over', { 'result': res.text.split('\n')[0] });
+          }
         } else {
           waiting = true;
-          inp.disabled = false; subBtn.disabled = false; inp.focus();
+          inp.disabled = false; 
+          subBtn.disabled = false;
+          inp.focus();
         }
       });
     }
 
+    // --- INPUT HANDLING ---
     subBtn.addEventListener('click', () => {
       if(!waiting) return;
       const v = parseInt(inp.value);
       if(isNaN(v)) return;
-      waiting = false; inp.value = "";
+      
+      waiting = false; 
+      inp.value = "";
       processTurn(v - 1);
     });
 
-    inp.addEventListener('keydown', e => { if(e.key === 'Enter') subBtn.click(); });
+    inp.addEventListener('keydown', e => { 
+      if(e.key === 'Enter') subBtn.click(); 
+    });
+    
     document.getElementById('restartBtn').addEventListener('click', () => location.reload());
   </script>
 </body>
