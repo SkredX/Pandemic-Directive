@@ -1,132 +1,297 @@
+/* =========================================
+   1. GLOBAL THEME & VARIABLES
+   ========================================= */
 :root {
-  --bg: #0b0e14;
-  --fg: #cdd6f4;
-  --accent: #7aa2f7;
-  --danger: #f7768e;
-  --muted: #565f89;
+  --bg-body: #020402;           /* Deep Black-Green */
+  --bg-terminal: rgba(10, 20, 15, 0.85);
+  
+  --text-main: #4af626;         /* Phosphor Green */
+  --text-dim: #225f19;
+  --text-alert: #ff2a2a;        /* Warning Red */
+  
+  --accent: #4af626;
+  --accent-glow: rgba(74, 246, 38, 0.6);
+  --alert-glow: rgba(255, 42, 42, 0.6);
+  
+  --font-stack: 'Share Tech Mono', monospace;
+  
+  /* CRT Effects */
+  --scanline-color: rgba(0, 0, 0, 0.5);
+  --glass-border: 1px solid rgba(74, 246, 38, 0.3);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
-  background: radial-gradient(circle at top, #121826, #070a12);
-  color: var(--fg);
-  font-family: "JetBrains Mono", monospace;
   margin: 0;
   padding: 0;
-  height: 100vh; /* Full viewport height */
-  overflow: hidden; /* Prevent body scroll, handle in terminal */
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  font-family: var(--font-stack);
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* Basic Text Bloom */
+  text-shadow: 0 0 4px var(--accent-glow); 
 }
 
+/* =========================================
+   2. CRT SCREEN EFFECTS (The Polish)
+   ========================================= */
+.screen-effects {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 99999; /* Always on top */
+}
+
+/* Horizontal Scanlines */
+.scanlines {
+  width: 100%; height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,0) 50%,
+    rgba(0,0,0,0.2) 50%,
+    rgba(0,0,0,0.2)
+  );
+  background-size: 100% 4px;
+  position: absolute;
+  top: 0; left: 0;
+}
+
+/* Dark corners (Vignette) */
+.vignette {
+  width: 100%; height: 100%;
+  position: absolute;
+  top: 0; left: 0;
+  background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.8) 100%);
+}
+
+/* =========================================
+   3. INTRO & LOADING
+   ========================================= */
+#loading-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-color: #000;
+  z-index: 5000;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+#intro-text-container {
+  font-size: 1.2rem;
+  max-width: 700px;
+  line-height: 1.5;
+  color: #ccc;
+  text-shadow: none; /* Cleaner reading for intro */
+  margin-bottom: 30px;
+}
+
+.highlight-text {
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* BIG START BUTTON */
+#enter-btn {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 20px 60px;
+  font-family: var(--font-stack);
+  font-size: 1.5rem;
+  letter-spacing: 3px;
+  cursor: pointer;
+  box-shadow: 0 0 15px var(--accent-glow), inset 0 0 15px var(--accent-glow);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+#enter-btn:hover {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 30px var(--accent);
+}
+
+/* =========================================
+   4. MAIN GAME UI
+   ========================================= */
 .container {
-  max-width: 900px;
-  height: 100%; /* Fill the screen */
-  margin: 0 auto;
+  width: 100%; max-width: 900px; height: 95vh;
+  display: flex; flex-direction: column;
   padding: 20px;
-  display: flex;
-  flex-direction: column; /* Stack elements vertically */
+  position: relative;
+  z-index: 100;
+}
+
+/* Decorative System Header */
+.system-header {
+  display: flex; justify-content: space-between;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 5px; margin-bottom: 10px;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
 .terminal {
-  background: #05070c;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 0 40px rgba(0,0,0,0.7);
-  white-space: pre-wrap;
-  line-height: 1.5;
-  
-  /* Flex magic for scrolling */
-  flex: 1; /* Take up all available remaining space */
-  overflow-y: auto; /* Scroll internally */
-  min-height: 0; /* Firefox flexbox fix */
-  margin-bottom: 20px;
-  
-  /* Scrollbar styling for webkit browsers */
-  scrollbar-width: thin;
-  scrollbar-color: var(--muted) #05070c;
-}
-
-/* Custom scrollbar to match minimalism */
-.terminal::-webkit-scrollbar {
-  width: 8px;
-}
-.terminal::-webkit-scrollbar-track {
-  background: #05070c;
-}
-.terminal::-webkit-scrollbar-thumb {
-  background-color: var(--muted);
+  flex: 1;
+  background-color: var(--bg-terminal);
+  border: 1px solid var(--accent);
   border-radius: 4px;
+  padding: 25px;
+  overflow-y: auto;
+  font-size: 1.1rem;
+  line-height: 1.4;
+  box-shadow: 0 0 20px rgba(74, 246, 38, 0.1);
+  /* Scrollbar Styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-terminal);
 }
 
+.terminal::-webkit-scrollbar { width: 8px; }
+.terminal::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+.terminal::-webkit-scrollbar-track { background: #000; }
+
+/* Input Area */
 .input-row {
-  display: flex;
-  gap: 10px;
-  flex-shrink: 0; /* Prevent input row from shrinking */
+  margin-top: 20px;
+  display: flex; gap: 15px; height: 55px;
 }
 
 input {
   flex: 1;
-  background: transparent;
-  border: 1px solid var(--muted);
-  color: var(--fg);
-  padding: 12px;
-  font-family: inherit;
-  font-size: 16px; /* Prevents iOS zoom on focus */
-  border-radius: 6px;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-stack);
+  font-size: 1.2rem;
+  padding: 0 20px;
+  outline: none;
+  text-transform: uppercase;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 input:focus {
-  outline: none;
-  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--accent-glow);
+  background: rgba(0,20,0,0.8);
 }
 
 button {
-  background: var(--accent);
+  background-color: var(--accent);
   color: #000;
   border: none;
-  padding: 12px 20px;
-  border-radius: 6px;
-  cursor: pointer;
+  font-family: var(--font-stack);
   font-weight: bold;
-  font-size: 14px;
-  transition: opacity 0.2s;
+  font-size: 1.1rem;
+  padding: 0 30px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px var(--accent-glow);
 }
 
-button:hover {
-  opacity: 0.85;
+button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px var(--accent);
 }
 
 button:disabled {
-  opacity: 0.5;
+  background-color: var(--text-dim);
+  color: #000;
   cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.5;
 }
 
 footer {
   margin-top: 15px;
   text-align: center;
-  color: var(--muted);
-  font-size: 0.8em;
-  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  text-shadow: none;
+  opacity: 0.7;
 }
 
-/* --- Mobile Optimization --- */
-@media (max-width: 600px) {
-  .container {
-    padding: 10px; /* Less padding on small screens */
-  }
+/* =========================================
+   5. CRITICAL STATE (RED MODE)
+   ========================================= */
+.container.critical {
+  --text-main: var(--text-alert);
+  --accent: var(--text-alert);
+  --accent-glow: var(--alert-glow);
+  --bg-terminal: rgba(20, 5, 5, 0.85);
+}
 
-  .terminal {
-    font-size: 14px; /* Slightly smaller text for readability */
-    padding: 15px;
-  }
+/* =========================================
+   6. NEWS MODAL (Glassmorphism)
+   ========================================= */
+#news-modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px); /* BLUR EFFECT */
+  z-index: 6000;
+  display: none;
+  align-items: center; justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
 
-  .input-row {
-    gap: 8px;
-  }
+.news-box {
+  background: rgba(10, 0, 0, 0.9);
+  border: 2px solid var(--text-alert);
+  padding: 0;
+  max-width: 550px;
+  width: 90%;
+  text-align: left;
+  color: var(--text-alert);
+  box-shadow: 0 0 50px rgba(255, 42, 42, 0.2);
+}
 
-  button {
-    padding: 12px 16px; /* Ensure good touch target size */
-  }
+.news-header-bar {
+  background: var(--text-alert);
+  color: #000;
+  padding: 10px 20px;
+  font-weight: bold;
+  font-size: 1.2rem;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.news-content {
+  padding: 30px;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  text-shadow: 0 0 5px var(--alert-glow);
+}
+
+#news-ok-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--text-alert);
+  border-top: 1px solid var(--text-alert);
+  padding: 15px;
+  font-size: 1rem;
+  text-align: center;
+  box-shadow: none;
+}
+
+#news-ok-btn:hover {
+  background: rgba(255, 42, 42, 0.1);
+  color: #fff;
+  box-shadow: inset 0 0 20px var(--alert-glow);
+}
+
+/* Animations */
+.blink { animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+/* Typing Cursor */
+.typing-cursor::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  margin-left: 5px;
+  color: var(--accent);
 }
