@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Pandemic Directive: Zero Hour</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   
   <link rel="icon" type="image/png" href="favicon.png">
 
@@ -22,6 +22,54 @@
   </script>
 
   <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    /* Default: Block iOS zoom on inputs */
+    input { font-size: 16px; }
+
+    /* MEDIA QUERY: Tablet & Mobile (Screens smaller than 1024px) */
+    @media (max-width: 1024px) {
+      .main-layout {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        height: 100vh;
+        gap: 0;
+      }
+
+      /* Hide side panels on mobile to focus on the game terminal */
+      #news-feed-container, .right-panel {
+        display: none !important;
+      }
+
+      .terminal-wrapper {
+        width: 100%;
+        height: 100%;
+        flex: 1;
+      }
+
+      .terminal {
+        font-size: 0.95rem; /* Readable text size */
+        padding: 15px;
+      }
+
+      /* Bigger touch targets for buttons */
+      button {
+        padding: 15px 25px;
+        font-size: 1.1rem;
+      }
+
+      .input-row {
+        height: 60px; /* Taller input area for fingers */
+        gap: 10px;
+      }
+
+      /* Shorten placeholder text on mobile if needed via JS or CSS hiding */
+      input::placeholder {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -67,7 +115,7 @@
       </div>
       <div id="terminal" class="terminal"></div>
       <div class="input-row">
-        <input id="choiceInput" type="number" placeholder=">> AWAITING COMMAND" min="1" disabled />
+        <input id="choiceInput" type="number" inputmode="numeric" pattern="[0-9]*" placeholder=">> CMD" min="1" disabled />
         <button id="submitBtn" disabled>EXECUTE</button>
         <button id="restartBtn" style="display:none;">REBOOT SYSTEM</button>
       </div>
@@ -86,8 +134,9 @@
 
   </div>
 
-  <div id="game-container" style="display:none;"></div> <footer>
-    <p>Decisions are final. History is watching.</p>
+  <div id="game-container" style="display:none;"></div> 
+  
+  <footer style="display:none;"> <p>Decisions are final. History is watching.</p>
   </footer>
 
   <script src="game_core.js"></script>
@@ -104,7 +153,7 @@
       playRadio: () => { audio.radio.currentTime = 0; audio.radio.volume = 0.8; audio.radio.play().catch(e => {}); }
     };
 
-    // --- CHART.JS SETUP (The "React-like" Component) ---
+    // --- CHART.JS SETUP ---
     let mainChart;
     const chartCtx = document.getElementById('gameChart').getContext('2d');
     
@@ -137,7 +186,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: false, // Turn off for "instant" CRT feel
+          animation: false, 
           plugins: { legend: { display: true, labels: { color: '#4af626' } } },
           scales: {
             y: { beginAtZero: true, max: 100, grid: { color: 'rgba(34, 95, 25, 0.3)' } },
@@ -149,7 +198,6 @@
 
     function updateChart(day, infection, trust) {
       if (!mainChart) return;
-      // Keep only last 10 days to mimic a "live monitor"
       if (mainChart.data.labels.length > 10) {
         mainChart.data.labels.shift();
         mainChart.data.datasets[0].data.shift();
@@ -160,7 +208,6 @@
       mainChart.data.datasets[1].data.push(trust * 100);
       mainChart.update();
       
-      // Update text stats below chart
       document.getElementById('stat-pop').innerText = `POP: ${(state.population*100).toFixed(0)}%`;
       document.getElementById('stat-eco').innerText = `ECO: ${(state.economy*100).toFixed(0)}%`;
     }
@@ -224,7 +271,7 @@
 
     enterBtn.addEventListener('click', () => {
       audio.startBgm();
-      initChart(); // START THE GRAPH
+      initChart(); 
       if (typeof gtag === 'function') gtag('event', 'game_start', { 'event_category': 'engagement' });
       loadingOverlay.style.transition = 'opacity 1s';
       loadingOverlay.style.opacity = '0';
@@ -235,20 +282,17 @@
     const term = document.getElementById('terminal');
     const inp = document.getElementById('choiceInput');
     const subBtn = document.getElementById('submitBtn');
-    const layout = document.body; // Using body for critical class
+    const layout = document.body; 
     let waiting = false;
 
     function processTurn(choice = null) {
       const res = advanceDay(choice);
 
-      // Update Visuals
       if(res.critical) layout.classList.add('critical');
       else layout.classList.remove('critical');
 
-      // UPDATE GRAPH
       updateChart(state.day, state.infection, state.trust);
 
-      // UPDATE STATUS LOG (Left Panel)
       const log = document.getElementById('status-log');
       log.innerHTML = `> DAY ${state.day} CYCLE START<br>> ANALYZING VECTORS...<br>> ADVISORS READY`;
 
