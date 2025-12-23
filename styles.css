@@ -1,12 +1,23 @@
-/* Global variables and theme */
+/* =========================================
+   1. GLOBAL THEME & VARIABLES
+   ========================================= */
 :root {
-  --bg-body: #050505;           
-  --bg-terminal: #0a0a0a;       
-  --text-main: #6ee7b7;         /* Retro Phosphor Green/Cyan */
-  --text-muted: #4b5563;        
-  --text-alert: #ef4444;        /* Red for Critical/News */
-  --accent: #10b981;            /* Bright Green */
-  --font-stack: "Courier New", Courier, monospace;
+  --bg-body: #020402;           /* Deep Black-Green */
+  --bg-terminal: rgba(10, 20, 15, 0.85);
+  
+  --text-main: #4af626;         /* Phosphor Green */
+  --text-dim: #225f19;
+  --text-alert: #ff2a2a;        /* Warning Red */
+  
+  --accent: #4af626;
+  --accent-glow: rgba(74, 246, 38, 0.6);
+  --alert-glow: rgba(255, 42, 42, 0.6);
+  
+  --font-stack: 'Share Tech Mono', monospace;
+  
+  /* CRT Effects */
+  --scanline-color: rgba(0, 0, 0, 0.5);
+  --glass-border: 1px solid rgba(74, 246, 38, 0.3);
 }
 
 * { box-sizing: border-box; }
@@ -21,178 +32,266 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden; 
+  overflow: hidden;
+  /* Basic Text Bloom */
+  text-shadow: 0 0 4px var(--accent-glow); 
 }
 
-/* loading screen and intro */
+/* =========================================
+   2. CRT SCREEN EFFECTS (The Polish)
+   ========================================= */
+.screen-effects {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 99999; /* Always on top */
+}
+
+/* Horizontal Scanlines */
+.scanlines {
+  width: 100%; height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,0) 50%,
+    rgba(0,0,0,0.2) 50%,
+    rgba(0,0,0,0.2)
+  );
+  background-size: 100% 4px;
+  position: absolute;
+  top: 0; left: 0;
+}
+
+/* Dark corners (Vignette) */
+.vignette {
+  width: 100%; height: 100%;
+  position: absolute;
+  top: 0; left: 0;
+  background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.8) 100%);
+}
+
+/* =========================================
+   3. INTRO & LOADING
+   ========================================= */
 #loading-overlay {
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  top: 0; left: 0; width: 100%; height: 100%;
   background-color: #000;
-  z-index: 9999;
+  z-index: 5000;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
 }
 
 #intro-text-container {
-  font-family: var(--font-stack);
-  white-space: pre-wrap;
-  text-align: left;
-  max-width: 600px;
-  min-height: 150px; 
-  margin-bottom: 20px;
-  line-height: 1.6;
-  color: #d1d5db;
-}
-
-/* Initialize protocol */
-#enter-btn {
-  padding: 20px 50px;     /* Increased padding */
-  font-size: 1.3rem;      /* Increased font size */
-  letter-spacing: 2px;
-  margin-top: 20px;
-  border: 2px solid var(--accent); /* Added border for prominence */
+  font-size: 1.2rem;
+  max-width: 700px;
+  line-height: 1.5;
+  color: #ccc;
+  text-shadow: none; /* Cleaner reading for intro */
+  margin-bottom: 30px;
 }
 
 .highlight-text {
   color: var(--accent);
-  font-weight: bold;
-  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  text-shadow: 0 0 8px var(--accent-glow);
 }
 
-.typing-cursor::after {
-  content: '█';
-  animation: blink 1s step-end infinite;
-  margin-left: 2px;
+/* BIG START BUTTON */
+#enter-btn {
+  background: transparent;
   color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 20px 60px;
+  font-family: var(--font-stack);
+  font-size: 1.5rem;
+  letter-spacing: 3px;
+  cursor: pointer;
+  box-shadow: 0 0 15px var(--accent-glow), inset 0 0 15px var(--accent-glow);
+  transition: all 0.3s ease;
+  text-transform: uppercase;
 }
 
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+#enter-btn:hover {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 30px var(--accent);
+}
 
-/* Main game UI */
+/* =========================================
+   4. MAIN GAME UI
+   ========================================= */
 .container {
-  width: 100%;
-  max-width: 900px;
-  height: 95vh;
-  display: flex;
-  flex-direction: column;
+  width: 100%; max-width: 900px; height: 95vh;
+  display: flex; flex-direction: column;
   padding: 20px;
-  transition: all 0.8s ease-in-out; 
+  position: relative;
+  z-index: 100;
+}
+
+/* Decorative System Header */
+.system-header {
+  display: flex; justify-content: space-between;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 5px; margin-bottom: 10px;
+  font-size: 0.8rem;
+  opacity: 0.7;
 }
 
 .terminal {
-  flex: 1; 
+  flex: 1;
   background-color: var(--bg-terminal);
-  border: 1px solid var(--text-muted);
-  border-radius: 8px;
-  padding: 20px;
-  white-space: pre-wrap; 
-  line-height: 1.5;
-  font-size: 1rem;
-  overflow-y: auto; 
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 25px;
+  overflow-y: auto;
+  font-size: 1.1rem;
+  line-height: 1.4;
+  box-shadow: 0 0 20px rgba(74, 246, 38, 0.1);
+  /* Scrollbar Styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-terminal);
 }
 
+.terminal::-webkit-scrollbar { width: 8px; }
+.terminal::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+.terminal::-webkit-scrollbar-track { background: #000; }
+
+/* Input Area */
 .input-row {
-  margin-top: 15px;
-  display: flex;
-  gap: 15px;
-  height: 50px;
+  margin-top: 20px;
+  display: flex; gap: 15px; height: 55px;
 }
 
 input {
-  flex: 1; 
-  background: transparent;
-  border: 1px solid var(--text-muted);
-  color: var(--text-main);
-  font-family: inherit;
-  font-size: 1.1rem;
-  padding: 0 15px;
-  border-radius: 4px;
+  flex: 1;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-stack);
+  font-size: 1.2rem;
+  padding: 0 20px;
   outline: none;
   text-transform: uppercase;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
-input:focus { border-color: var(--accent); }
+input:focus {
+  box-shadow: 0 0 15px var(--accent-glow);
+  background: rgba(0,20,0,0.8);
+}
+
 button {
   background-color: var(--accent);
-  color: #000; 
+  color: #000;
   border: none;
+  font-family: var(--font-stack);
   font-weight: bold;
-  padding: 0 25px;
+  font-size: 1.1rem;
+  padding: 0 30px;
   cursor: pointer;
   text-transform: uppercase;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px var(--accent-glow);
 }
-button:disabled { background-color: var(--text-muted); cursor: not-allowed; }
+
+button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px var(--accent);
+}
+
+button:disabled {
+  background-color: var(--text-dim);
+  color: #000;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.5;
+}
 
 footer {
   margin-top: 15px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-size: 0.8rem;
-  text-transform: uppercase;
+  text-shadow: none;
+  opacity: 0.7;
 }
 
-/* CRITICAL STATE OVERRIDES */
+/* =========================================
+   5. CRITICAL STATE (RED MODE)
+   ========================================= */
 .container.critical {
-  --text-main: #ef4444;
-  --accent: #b91c1c;
-}
-.container.critical .terminal {
-  border-color: #b91c1c;
-  box-shadow: 0 0 20px rgba(185, 28, 28, 0.3);
+  --text-main: var(--text-alert);
+  --accent: var(--text-alert);
+  --accent-glow: var(--alert-glow);
+  --bg-terminal: rgba(20, 5, 5, 0.85);
 }
 
-/* News pop-up */
+/* =========================================
+   6. NEWS MODAL (Glassmorphism)
+   ========================================= */
 #news-modal-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.85);
-  z-index: 10000; 
-  display: none; 
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px); /* BLUR EFFECT */
+  z-index: 6000;
+  display: none;
   align-items: center; justify-content: center;
   animation: fadeIn 0.3s ease-out;
 }
 
 .news-box {
-  background-color: #1a0505;
+  background: rgba(10, 0, 0, 0.9);
   border: 2px solid var(--text-alert);
-  padding: 30px;
-  max-width: 500px;
-  text-align: center;
+  padding: 0;
+  max-width: 550px;
+  width: 90%;
+  text-align: left;
   color: var(--text-alert);
-  box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 50px rgba(255, 42, 42, 0.2);
 }
 
-.news-title {
-  font-size: 1.5rem;
+.news-header-bar {
+  background: var(--text-alert);
+  color: #000;
+  padding: 10px 20px;
   font-weight: bold;
-  margin-bottom: 20px;
-  letter-spacing: 2px;
-  animation: blink 2s infinite;
+  font-size: 1.2rem;
+  display: flex; align-items: center; gap: 10px;
 }
 
 .news-content {
-  font-size: 1.1rem;
-  margin-bottom: 30px;
-  line-height: 1.4;
+  padding: 30px;
+  font-size: 1.2rem;
+  line-height: 1.5;
+  text-shadow: 0 0 5px var(--alert-glow);
 }
 
 #news-ok-btn {
-  background-color: var(--text-alert);
-  color: #000;
-  border: none;
-  padding: 10px 30px;
-  font-weight: bold;
-  cursor: pointer;
-  font-family: inherit;
+  width: 100%;
+  background: transparent;
+  color: var(--text-alert);
+  border-top: 1px solid var(--text-alert);
+  padding: 15px;
+  font-size: 1rem;
+  text-align: center;
+  box-shadow: none;
 }
-#news-ok-btn:hover { background-color: #fca5a5; }
 
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+#news-ok-btn:hover {
+  background: rgba(255, 42, 42, 0.1);
+  color: #fff;
+  box-shadow: inset 0 0 20px var(--alert-glow);
+}
 
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #000; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+/* Animations */
+.blink { animation: blink 1s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+/* Typing Cursor */
+.typing-cursor::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  margin-left: 5px;
+  color: var(--accent);
+}
