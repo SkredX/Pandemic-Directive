@@ -1,11 +1,9 @@
 /**
  * PANDEMIC DIRECTIVE: ZERO HOUR
- * CORE LOGIC - ROBUST & BALANCED
+ * Core logic update- serious and balanced
  */
 
-// ==========================================
-// 1. GAME STATE
-// ==========================================
+// 1. Game state
 
 let state = {
   day: 1,
@@ -32,9 +30,7 @@ let state = {
   activeInterruption: null, currentScenario: null
 };
 
-// ==========================================
-// 2. MATH & HELPERS
-// ==========================================
+// 2. Math and helpers
 
 function clamp(v) { return Math.max(0, Math.min(1, v)); }
 
@@ -58,9 +54,7 @@ function modifyLoyalty(advisor, amount) {
 
 function noise(scale=0.02) { return (Math.random() - 0.5) * scale; }
 
-// ==========================================
-// 3. SIMULATION ENGINE
-// ==========================================
+// 3. Simulation engine
 
 function runDailySimulation() {
   let spreadRate = 0.15; 
@@ -106,9 +100,7 @@ function runDailySimulation() {
   normalizeState();
 }
 
-// ==========================================
-// 4. NEWS HEADLINE SYSTEM
-// ==========================================
+// 4. News Headline system
 
 const newsPool = [
   { id: 'n1', text: "BREAKING: WHO Declares Global Pandemic Level 6", condition: s => s.day === 2 },
@@ -138,7 +130,6 @@ const newsPool = [
 
 function checkNews() {
   // PROBABILITY CHECK: 75% chance to skip news even if valid
-  // This makes news much less frequent.
   if (Math.random() < 0.75) return null;
 
   // Find valid news that hasn't been shown
@@ -152,9 +143,7 @@ function checkNews() {
   return null;
 }
 
-// ==========================================
-// 5. EVENT POOL
-// ==========================================
+// 5. Event pool
 
 const eventPool = [
   { id: 'e1', text: "SITUATION: OXYGEN LEAK\nA main oxygen tank at Central Hospital has ruptured.", choices: [{ text: "Divert industrial oxygen (Hurt Eco).", effect: s => { s.economy -= 0.05; s.healthcare_load -= 0.05; } }, { text: "Ration oxygen (Deaths).", effect: s => { s.population -= 0.01; s.trust -= 0.05; } }] },
@@ -194,9 +183,7 @@ const eventPool = [
   { id: 'e35', text: "SITUATION: GHOST TOWNS\nSmall towns completely dead.", choices: [{ text: "Burn them.", effect: s => { s.infection -= 0.02; s.trust -= 0.05; } }, { text: "Seal them.", effect: s => { s.trust -= 0.01; } }] }
 ];
 
-// ==========================================
-// 6. CONTENT FETCHING
-// ==========================================
+// 6. Content fetching system
 
 const storyArcs = {
   main: {
@@ -226,9 +213,7 @@ function getDailyContent() {
   return { text: "STATUS: QUIET DAY\nNo major incidents reported.", choices: [{ text: "Fortify Economy", effect: s => s.economy+=0.02}, {text: "Boost Health", effect: s=>s.healthcare_load-=0.02}] };
 }
 
-// ==========================================
-// 7. ENDINGS & TRIGGER
-// ==========================================
+// 7. Endings and triggers
 
 function triggerInterruption(title, text, choices) {
   state.activeInterruption = { text: `*** ${title} ***\n${text}`, choices: choices };
@@ -242,9 +227,7 @@ function checkEnding() {
   return null;
 }
 
-// ==========================================
-// 8. PUBLIC API
-// ==========================================
+// 8. Public API
 
 function getStatusReport() {
   normalizeState();
