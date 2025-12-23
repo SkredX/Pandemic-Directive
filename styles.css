@@ -1,6 +1,4 @@
-/* =========================================
-   GLOBAL VARIABLES & THEME
-   ========================================= */
+/* Global variables and theme */
 :root {
   --bg-body: #050505;           
   --bg-terminal: #0a0a0a;       
@@ -26,9 +24,7 @@ body {
   overflow: hidden; 
 }
 
-/* =========================================
-   LOADING SCREEN & INTRO
-   ========================================= */
+/* loading screen and intro */
 #loading-overlay {
   position: fixed;
   top: 0; left: 0;
@@ -50,7 +46,7 @@ body {
   color: #d1d5db;
 }
 
-/* START BUTTON - MADE BIGGER */
+/* Initialize protocol */
 #enter-btn {
   padding: 20px 50px;     /* Increased padding */
   font-size: 1.3rem;      /* Increased font size */
@@ -74,9 +70,7 @@ body {
 
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-/* =========================================
-   MAIN GAME UI (Centered Container)
-   ========================================= */
+/* Main game UI */
 .container {
   width: 100%;
   max-width: 900px;
@@ -150,9 +144,7 @@ footer {
   box-shadow: 0 0 20px rgba(185, 28, 28, 0.3);
 }
 
-/* =========================================
-   NEWS MODAL POP-UP
-   ========================================= */
+/* News pop-up */
 #news-modal-overlay {
   position: fixed;
   top: 0; left: 0;
