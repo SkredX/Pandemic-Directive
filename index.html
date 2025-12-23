@@ -5,7 +5,11 @@
   <title>Pandemic Directive: Zero Hour</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="icon" type="image/png" href="logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-3KNYNHZWV1"></script>
   <script>
@@ -21,7 +25,13 @@
 
   <audio id="bgm" loop><source src="bgm.mp3" type="audio/mpeg"></audio>
   <audio id="sfx-typewriter" loop><source src="typewriter.mp3" type="audio/mpeg"></audio>
-  <audio id="sfx-radio"><source src="radio.mp3" type="audio/mpeg"></audio>
+  <audio id="sfx-radio"><source src="radio.m4a" type="audio/mpeg"></audio>
+
+  <div class="screen-effects">
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+    <div class="noise"></div>
+  </div>
 
   <div id="loading-overlay">
     <div id="intro-text-container"></div>
@@ -30,19 +40,26 @@
 
   <div id="news-modal-overlay">
     <div class="news-box">
-      <div class="news-title">WORLD NEWS WIRE</div>
+      <div class="news-header-bar">
+        <span class="news-icon">⚠</span> WORLD NEWS WIRE
+      </div>
       <div id="news-content" class="news-content"></div>
       <button id="news-ok-btn">ACKNOWLEDGE</button>
     </div>
   </div>
 
   <div id="game-container" class="container">
+    <div class="system-header">
+      <span>SYS.OP.2025</span>
+      <span class="blink">ONLINE</span>
+    </div>
+
     <div id="terminal" class="terminal"></div>
 
     <div class="input-row">
-      <input id="choiceInput" type="number" placeholder=">> COMMAND" min="1" disabled />
+      <input id="choiceInput" type="number" placeholder=">> AWAITING COMMAND" min="1" disabled />
       <button id="submitBtn" disabled>EXECUTE</button>
-      <button id="restartBtn" style="display:none;">REBOOT</button>
+      <button id="restartBtn" style="display:none;">REBOOT SYSTEM</button>
     </div>
 
     <footer>
@@ -59,8 +76,8 @@
       type: document.getElementById('sfx-typewriter'),
       radio: document.getElementById('sfx-radio'),
       startBgm: () => { 
-        audio.bgm.volume = 0.6; 
-        audio.bgm.play().catch(e => console.log("Audio waiting for interaction")); 
+        audio.bgm.volume = 0.5; 
+        audio.bgm.play().catch(e => console.log("Audio waiting")); 
       },
       playType: () => { 
         audio.type.currentTime = 0; 
@@ -71,7 +88,7 @@
       },
       playRadio: () => { 
         audio.radio.currentTime = 0; 
-        audio.radio.volume = 1.0; 
+        audio.radio.volume = 0.8; 
         audio.radio.play().catch(e => {}); 
       }
     };
@@ -133,7 +150,7 @@
 
     window.addEventListener('load', () => {
       setTimeout(() => {
-        typeText(introContainer, introText, 40, () => {
+        typeText(introContainer, introText, 30, () => {
           introContainer.innerHTML = introContainer.innerHTML.replace(
             "Stay prepared to lead from the shadows.", 
             "<span class='highlight-text'>Stay prepared to lead from the shadows.</span>"
@@ -146,12 +163,9 @@
 
     enterBtn.addEventListener('click', () => {
       audio.startBgm();
-      
-      // Send GA Event for Start
       if (typeof gtag === 'function') {
         gtag('event', 'game_start', { 'event_category': 'engagement' });
       }
-
       loadingOverlay.style.transition = 'opacity 1s';
       loadingOverlay.style.opacity = '0';
       setTimeout(() => {
@@ -168,18 +182,14 @@
     let waiting = false;
 
     function processTurn(choice = null) {
-      // Core logic call
       const res = advanceDay(choice);
 
-      // Handle Visual Critical State
       if(res.critical) container.classList.add('critical');
       else container.classList.remove('critical');
 
-      // Lock Inputs
       inp.disabled = true; 
       subBtn.disabled = true;
 
-      // Check for News
       if(res.news) {
         showNews(res.news, res);
       } else {
@@ -189,15 +199,13 @@
 
     function displayTurn(res) {
       const block = document.createElement('div');
-      block.style.marginBottom = "20px";
+      block.style.marginBottom = "25px";
       term.appendChild(block);
 
       typeText(block, res.text, 5, () => {
         if(res.ended) {
           audio.bgm.pause();
           document.getElementById('restartBtn').style.display = 'block';
-          
-          // Send GA Event for End
           if (typeof gtag === 'function') {
             gtag('event', 'game_over', { 'result': res.text.split('\n')[0] });
           }
